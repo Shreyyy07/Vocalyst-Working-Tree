@@ -1,0 +1,12 @@
+{
+    "builds": [
+      {
+        "src": "requirements.txt",
+        "use": "@vercel/python",
+        "config": {
+          "pythonVersion": "3.10"
+        }
+      }
+    ]
+  }
+  
