@@ -59,17 +59,17 @@ export function NavigationBar() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed top-0 left-0 w-full z-50 bg-black/30 backdrop-blur-lg border-b border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.25)]">
-      <div className="container max-w-6xl mx-auto flex h-7 items-center justify-between px-4">
+    <nav className="fixed top-0 left-0 w-full z-50 bg-black/40 backdrop-blur-xl border-b border-white/10 shadow-lg">
+      <div className="container max-w-7xl mx-auto flex h-20 items-center justify-between px-6">
         {/* Brand */}
-        <Link href="/" className="flex items-center gap-2">
-          <span className="text-2xl font-extrabold bg-gradient-to-r from-cyan-400 to-fuchsia-500 text-transparent bg-clip-text tracking-tight">
+        <Link href="/" className="flex items-center gap-2 group">
+          <span className="text-3xl font-extrabold bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 text-transparent bg-clip-text tracking-tight transition-all duration-300 group-hover:bg-gradient-to-l">
             Vocalyst
           </span>
         </Link>
 
         {/* Navigation Links */}
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-8">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
 
@@ -78,15 +78,15 @@ export function NavigationBar() {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "relative text-sm font-medium px-3 py-2 transition-all duration-300",
+                  "relative text-base font-medium px-4 py-2 rounded-full transition-all duration-300",
                   isActive
-                    ? "text-cyan-400"
-                    : "text-white/70 hover:text-white/90"
+                    ? "text-cyan-400 bg-cyan-400/10"
+                    : "text-white/70 hover:text-white hover:bg-white/5"
                 )}
               >
                 <span>{item.label}</span>
                 {isActive && (
-                  <span className="absolute bottom-0 left-1/2 w-1 h-1 bg-cyan-400 rounded-full transform -translate-x-1/2" />
+                  <span className="absolute bottom-0 left-1/2 w-1.5 h-1.5 bg-cyan-400 rounded-full transform -translate-x-1/2 -mb-2 shadow-[0_0_10px_rgba(34,211,238,0.8)]" />
                 )}
               </Link>
             );

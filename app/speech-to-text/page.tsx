@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import FloatingPoints from "@/components/ui/FloatingPoints";
-import { Upload, Mic, StopCircle, FileAudio, Loader2 } from "lucide-react";
+import { Upload, Mic, StopCircle, FileAudio, Loader2, Sparkles, Activity, Ear, MessageSquare } from "lucide-react";
 
 export default function SpeechToTextPage() {
     const [isRecording, setIsRecording] = useState(false);
@@ -161,6 +161,35 @@ export default function SpeechToTextPage() {
                             </div>
                         )}
                     </Card>
+
+                    {/* Pro Tips Section - Visible when no results yet */}
+                    {!transcription && !analysis && !isProcessing && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                            <Card className="bg-white/5 border border-white/10 p-6 hover:bg-white/10 transition-colors group">
+                                <div className="h-10 w-10 rounded-full bg-blue-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                    <Sparkles className="h-5 w-5 text-blue-400" />
+                                </div>
+                                <h3 className="font-semibold text-lg mb-2 text-white">Crystal Clear AI</h3>
+                                <p className="text-sm text-gray-400">Our advanced model captures every nuance of your speech with high precision.</p>
+                            </Card>
+
+                            <Card className="bg-white/5 border border-white/10 p-6 hover:bg-white/10 transition-colors group">
+                                <div className="h-10 w-10 rounded-full bg-purple-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                    <Activity className="h-5 w-5 text-purple-400" />
+                                </div>
+                                <h3 className="font-semibold text-lg mb-2 text-white">Noise Cancellation</h3>
+                                <p className="text-sm text-gray-400">Built-in filtering minimizes background noise for professional-grade results.</p>
+                            </Card>
+
+                            <Card className="bg-white/5 border border-white/10 p-6 hover:bg-white/10 transition-colors group">
+                                <div className="h-10 w-10 rounded-full bg-green-500/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                                    <MessageSquare className="h-5 w-5 text-green-400" />
+                                </div>
+                                <h3 className="font-semibold text-lg mb-2 text-white">Instant Feedback</h3>
+                                <p className="text-sm text-gray-400">Get immediate analysis on clarity, filler words, and pacing of your speech.</p>
+                            </Card>
+                        </div>
+                    )}
 
                     {/* Processing Indicator */}
                     {isProcessing && (

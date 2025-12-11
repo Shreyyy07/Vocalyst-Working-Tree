@@ -250,28 +250,7 @@ export default function PracticePage() {
         "Structure your speech with clear points",
       ],
     },
-    {
-      id: "rizzing",
-      name: "Rizzing",
-      description: "Practice charismatic and engaging conversation",
-      emoji: "✨",
-      tips: [
-        "Stay confident and authentic",
-        "Use appropriate humor",
-        "Read and respond to social cues",
-      ],
-    },
-    {
-      id: "basic-conversations",
-      name: "Basic Conversations",
-      description: "Everyday casual interactions",
-      emoji: "💬",
-      tips: [
-        "Keep the conversation flowing naturally",
-        "Ask open-ended questions",
-        "Show genuine interest",
-      ],
-    },
+
     {
       id: "formal-conversations",
       name: "Formal Conversations",
@@ -870,7 +849,7 @@ export default function PracticePage() {
       <motion.main
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        className="relative z-10 container max-w-4xl mx-auto p-4 py-8"
+        className="relative z-10 container max-w-4xl mx-auto p-4 pt-32 pb-8"
       >
         <AnimatePresence mode="wait">
           <div className="space-y-8">
