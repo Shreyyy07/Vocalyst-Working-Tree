@@ -52,6 +52,9 @@ export default function CameraPage() {
   const [recordingDuration, setRecordingDuration] = useState<number>(0);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Emotion tracking during recording
+  // Emotion capture removed - now handled by backend
+
   const detectCombined = async () => {
     // Check if videoRef.current and canvasRef.current exist
     if (!videoRef.current || !canvasRef.current || isProcessing || isRecording) return;
@@ -65,13 +68,8 @@ export default function CameraPage() {
     try {
       setIsProcessing(true);
       setBackendError(null);
+      // Connection check moved to startCamera to avoid 100ms loop overhead
 
-      // Test connection first
-      const isConnected = await testApiConnection();
-      if (!isConnected) {
-        setIsProcessing(false);
-        return;
-      }
 
       // Capture the current frame from video
       const canvas = document.createElement("canvas");
@@ -251,6 +249,12 @@ export default function CameraPage() {
 
   const startCamera = async () => {
     try {
+      // Check API connection once before starting
+      const isConnected = await testApiConnection();
+      if (!isConnected) {
+        throw new Error("Cannot connect to backend API");
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: {
@@ -323,7 +327,7 @@ export default function CameraPage() {
         },
       });
       const data = await response.json();
-      console.log("API test response:", data);
+      // Removed console.log to prevent spam
       return true;
     } catch (error) {
       console.error("API connection test failed:", error);
@@ -350,6 +354,8 @@ export default function CameraPage() {
 
     return maxEmotion;
   };
+
+  // Emotion capture removed - backend now extracts frames and analyzes emotions
 
   const startRecording = async () => {
     if (!streamRef.current) return;
@@ -424,6 +430,8 @@ export default function CameraPage() {
         const formData = new FormData();
         formData.append("video", videoBlob, "recording.mp4");
 
+        // Emotion data removed - backend extracts from video
+
         try {
           setIsUploading(true);
           const response = await fetch(
@@ -458,13 +466,16 @@ export default function CameraPage() {
         }
       };
 
-      mediaRecorder.start(100);
+      // Set recording state FIRST before starting intervals
       setIsRecording(true);
+      mediaRecorder.start(100);
 
       // Start recording timer
       recordingTimerRef.current = setInterval(() => {
         setRecordingDuration((prev) => prev + 1);
       }, 1000);
+
+      // Emotion capture removed - backend extracts frames
     } catch (error) {
       console.error("Error starting recording:", error);
       setRecordingError(
@@ -477,6 +488,8 @@ export default function CameraPage() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+
+      // Emotion capture interval removed
     }
   };
 
@@ -488,6 +501,7 @@ export default function CameraPage() {
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
+      // Emotion capture interval removed - no longer needed
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
       }

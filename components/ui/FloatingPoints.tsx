@@ -93,10 +93,6 @@ export default function FloatingPointsCanvas() {
         antialias: true,
         alpha: true,
       }}
-      onCreated={({ gl }) => {
-        // Properly configure renderer to avoid deprecation warnings
-        gl.outputColorSpace = "srgb" as any;
-      }}
     >
       <FloatingPoints />
     </Canvas>

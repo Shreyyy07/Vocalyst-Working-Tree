@@ -12,7 +12,6 @@ import {
 import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
-import FloatingPointsCanvas from "@/components/ui/FloatingPoints";
 
 // Update the SpeechRecognitionEvent interface
 interface SpeechRecognitionEvent {
@@ -865,10 +864,8 @@ export default function PracticePage() {
 
   return (
     <>
-      {/* 3D Floating Points Background */}
-      <div className="fixed inset-0 -z-10 bg-black">
-        <FloatingPointsCanvas />
-      </div>
+      {/* Solid color background (FloatingPointsCanvas removed for faster performance) */}
+      <div className="fixed inset-0 -z-10 bg-black" />
 
       <motion.main
         initial={{ opacity: 0 }}

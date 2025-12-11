@@ -9,12 +9,18 @@ import {
 } from "@/components/ui/card";
 import Link from "next/link";
 import { useState } from "react";
-import FloatingPointsCanvas from "../components/ui/FloatingPoints"; // NEW
+import dynamic from "next/dynamic";
+
+// Dynamic import for FloatingPointsCanvas (loads asynchronously)
+const FloatingPointsCanvas = dynamic(
+  () => import("@/components/ui/FloatingPoints"),
+  { ssr: false }
+);
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
-  visible: { 
-    opacity: 1, 
+  visible: {
+    opacity: 1,
     y: 0,
     transition: {
       duration: 0.8,
@@ -35,12 +41,12 @@ const container = {
 };
 
 const arrowVariants = {
-  rest: { 
+  rest: {
     x: -4,
     opacity: 0.7,
     scale: 0.9
   },
-  hover: { 
+  hover: {
     x: 4,
     opacity: 1,
     scale: 1,
@@ -83,9 +89,9 @@ export default function LandingPage() {
 
   return (
     <>
-       {/* background points canvas */}
+      {/* background points canvas */}
 
-      <motion.main 
+      <motion.main
         initial="hidden"
         animate="visible"
         className="relative z-10 min-h-screen flex flex-col items-center justify-center p-4 bg-black"
@@ -95,26 +101,26 @@ export default function LandingPage() {
         </div>
         <div className="w-full max-w-4xl mx-auto">
           {/* Hero Section */}
-          <motion.div 
+          <motion.div
             variants={fadeIn}
             className="text-center mb-24 space-y-8"
           >
             <motion.div
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ 
+              transition={{
                 duration: 1,
                 ease: [0.34, 1.56, 0.64, 1]
               }}
               className="inline-block text-6xl mb-2"
             >
-              
+
             </motion.div>
-            <motion.h1 
+            <motion.h1
               className="text-6xl md:text-7xl font-bold tracking-tight text-white"
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ 
+              transition={{
                 delay: 0.3,
                 duration: 0.8,
                 ease: [0.22, 1, 0.36, 1]
@@ -125,13 +131,13 @@ export default function LandingPage() {
                 <span className="text-primary"></span>
               </span>
 
-              
+
             </motion.h1>
-            <motion.p 
+            <motion.p
               className="text-xl text-muted-foreground/80 font-light max-w-2xl mx-auto text-white/80"
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              transition={{ 
+              transition={{
                 delay: 0.5,
                 duration: 0.8,
                 ease: [0.22, 1, 0.36, 1]
@@ -142,7 +148,7 @@ export default function LandingPage() {
           </motion.div>
 
           {/* Navigation Cards */}
-          <motion.div 
+          <motion.div
             variants={container}
             className="grid grid-cols-1 md:grid-cols-3 gap-5 px-4"
           >
@@ -154,8 +160,8 @@ export default function LandingPage() {
                 onHoverEnd={() => setHoveredIndex(null)}
               >
                 <Link href={section.href}>
-                <Card
-                  className={`
+                  <Card
+                    className={`
                     group relative overflow-hidden rounded-xl p-[2px]
                     bg-gradient-to-br ${section.color}
                     shadow-[0_0_30px_#00f0ff20] transition-all duration-500
@@ -164,17 +170,16 @@ export default function LandingPage() {
                     before:bg-[linear-gradient(120deg,rgba(255,255,255,0)_30%,rgba(255,255,255,0.1)_50%,rgba(255,255,255,0)_70%)]
                     before:animate-shimmer
                   `}
-                >
-                  <div
-                    className="absolute inset-0 z-0 opacity-0 group-hover:opacity-100
+                  >
+                    <div
+                      className="absolute inset-0 z-0 opacity-0 group-hover:opacity-100
                     bg-[linear-gradient(120deg,rgba(255,255,255,0)_30%,rgba(255,255,255,0.2)_50%,rgba(255,255,255,0)_70%)]
                     animate-shimmer pointer-events-none"
-                  />
+                    />
 
                     <motion.div
-                      className={`absolute inset-0 bg-gradient-to-r ${
-                        hoveredIndex === index ? section.hoverColor : section.color
-                      } transition-opacity duration-700`}
+                      className={`absolute inset-0 bg-gradient-to-r ${hoveredIndex === index ? section.hoverColor : section.color
+                        } transition-opacity duration-700`}
                       initial={false}
                       animate={{
                         opacity: hoveredIndex === index ? 1 : 0.5
@@ -182,14 +187,14 @@ export default function LandingPage() {
                     />
                     <CardHeader className="py-8 relative">
                       <div className="flex flex-col items-center text-center gap-4">
-                        <motion.span 
+                        <motion.span
                           className="text-4xl"
                           animate={{
                             scale: hoveredIndex === index ? 1.1 : 1,
                             y: hoveredIndex === index ? -2 : 0
                           }}
-                          transition={{ 
-                            type: "spring", 
+                          transition={{
+                            type: "spring",
                             stiffness: 200,
                             damping: 15
                           }}
@@ -234,7 +239,7 @@ export default function LandingPage() {
             ))}
           </motion.div>
 
-          <motion.footer 
+          <motion.footer
             variants={fadeIn}
             className="text-center text-sm text-muted-foreground/60 mt-24 text-white/60"
           >

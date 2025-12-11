@@ -77,6 +77,72 @@ def ngrams(words, n):
         output.append(' '.join(words[i:i + n]))
     return output
 
+def analyze_emotional_journey(emotion_timeline):
+    """
+    Analyzes a timeline of emotions captured during recording.
+    Returns comprehensive emotion analysis including:
+    - Dominant emotion
+    - Emotional stability
+    - Engagement score
+    - Mood consistency
+    """
+    if not emotion_timeline or len(emotion_timeline) == 0:
+        return {
+            "dominant_emotion": "neutral",
+            "emotional_stability": 1.0,
+            "engagement_score": 50,
+            "emotion_distribution": {},
+            "mood_consistency": 1.0
+        }
+    
+    # Calculate average of each emotion across all snapshots
+    emotion_sums = {}
+    for snapshot in emotion_timeline:
+        for emotion, score in snapshot.items():
+            if emotion not in emotion_sums:
+                emotion_sums[emotion] = []
+            emotion_sums[emotion].append(score)
+    
+    # Calculate averages
+    emotion_averages = {}
+    for emotion, scores in emotion_sums.items():
+        emotion_averages[emotion] = sum(scores) / len(scores)
+    
+    # Find dominant emotion
+    dominant_emotion = max(emotion_averages.items(), key=lambda x: x[1])[0]
+    
+    # Calculate emotional stability (low variance = high stability)
+    variances = []
+    for emotion, scores in emotion_sums.items():
+        mean = sum(scores) / len(scores)
+        variance = sum((x - mean) ** 2 for x in scores) / len(scores)
+        variances.append(variance)
+    avg_variance = sum(variances) / len(variances) if variances else 0
+    emotional_stability = max(0, 1 - (avg_variance * 10))  # Normalize to 0-1
+    
+    # Calculate engagement score (based on expressiveness - opposite of neutral)
+    neutral_avg = emotion_averages.get('neutral', 0)
+    engagement_score = round((1 - neutral_avg) * 100)  # Higher when NOT neutral
+    
+    # Mood consistency (how much emotions change over time)
+    mood_shifts = 0
+    prev_dominant = None
+    for snapshot in emotion_timeline:
+        curr_dominant = max(snapshot.items(), key=lambda x: x[1])[0]
+        if prev_dominant and curr_dominant != prev_dominant:
+            mood_shifts += 1
+        prev_dominant = curr_dominant
+    
+    mood_consistency = max(0, 1 - (mood_shifts / len(emotion_timeline))) if len(emotion_timeline) > 1 else 1.0
+    
+    return {
+        "dominant_emotion": dominant_emotion,
+        "emotional_stability": round(emotional_stability, 2),
+        "engagement_score": engagement_score,
+        "emotion_distribution": {k: round(v, 3) for k, v in emotion_averages.items()},
+        "mood_consistency": round(mood_consistency, 2)
+    }
+
 def analyse_filler_words(text):
     words = re.findall(r'\b\w+\b', text.lower())
     total_words = len(words)
@@ -247,10 +313,17 @@ def detect_emotions(image: Image) -> dict:
     image_arr = np.array(image)
     
     try:
-        # Process image with DeepFace
-        result = DeepFace.analyze(image_arr, 
-                                actions=['emotion'],
-                                enforce_detection=False)
+        # Detect emotion using DeepFace
+        try:
+            # Wrap DeepFace to prevent crashing on OpenCV assertion errors
+            result = DeepFace.analyze(image_arr, 
+                                    actions=['emotion'], 
+                                    enforce_detection=False)
+        except Exception as e:
+            logger.warning(f"DeepFace analysis failed for frame: {str(e)}")
+            # Provide fallback/empty result so stream continues
+            result = [{'dominant_emotion': 'neutral', 'emotion': {'neutral': 100}}]
+
         
         # Handle multiple faces by taking first one
         if isinstance(result, list):
@@ -333,28 +406,46 @@ def detect_emotion():
             "error": str(e)
         }), 500
 
-# Initialize MediaPipe Face Landmarker
-try:
-    model_path = os.path.join(os.path.dirname(__file__), 'face_landmarker_v2_with_blendshapes.task')
-    logger.info(f"Loading model from: {model_path}")
-    if not os.path.exists(model_path):
-        logger.error(f"Model file not found at: {model_path}")
-        raise FileNotFoundError(f"Model file not found at: {model_path}")
-        
-    base_options = python.BaseOptions(model_asset_path=model_path)
-    options = vision.FaceLandmarkerOptions(
-        base_options=base_options,
-        output_face_blendshapes=True,
-        output_facial_transformation_matrixes=True,
-        num_faces=1,
-        running_mode=vision.RunningMode.IMAGE
-    )
-    detector = vision.FaceLandmarker.create_from_options(options)
-    logger.info("Successfully loaded face landmarker model")
-except Exception as e:
-    logger.error(f"Error initialising face landmarker: {str(e)}")
-    traceback.print_exc()
-    raise
+# Lazy-loaded MediaPipe Face Landmarker (loads on first use)
+_face_detector = None
+_detector_lock = None
+
+def get_face_detector():
+    """Lazy load and cache the MediaPipe Face Landmarker."""
+    global _face_detector, _detector_lock
+    
+    # Initialize lock on first call
+    if _detector_lock is None:
+        import threading
+        _detector_lock = threading.Lock()
+    
+    if _face_detector is None:
+        with _detector_lock:
+            # Double-check after acquiring lock
+            if _face_detector is None:
+                try:
+                    model_path = os.path.join(os.path.dirname(__file__), 'face_landmarker_v2_with_blendshapes.task')
+                    logger.info(f"Lazy loading MediaPipe model from: {model_path}")
+                    if not os.path.exists(model_path):
+                        logger.error(f"Model file not found at: {model_path}")
+                        raise FileNotFoundError(f"Model file not found at: {model_path}")
+                        
+                    base_options = python.BaseOptions(model_asset_path=model_path)
+                    options = vision.FaceLandmarkerOptions(
+                        base_options=base_options,
+                        output_face_blendshapes=True,
+                        output_facial_transformation_matrixes=True,
+                        num_faces=1,
+                        running_mode=vision.RunningMode.IMAGE
+                    )
+                    _face_detector = vision.FaceLandmarker.create_from_options(options)
+                    logger.info("Successfully loaded face landmarker model")
+                except Exception as e:
+                    logger.error(f"Error initialising face landmarker: {str(e)}")
+                    traceback.print_exc()
+                    raise
+    
+    return _face_detector
 
 def determine_gaze_direction(face_landmarks):
     # Convert FACEMESH_LEFT_IRIS from tuple to list of integers
@@ -436,7 +527,8 @@ def process_frame(frame):
     # Create MediaPipe Image
     mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
     
-    # Detect face landmarks
+    # Detect face landmarks using lazy-loaded detector
+    detector = get_face_detector()
     detection_result = detector.detect(mp_image)
     
     # If no faces detected, return original frame
@@ -510,8 +602,28 @@ def gen_frames():
     finally:
         camera.release()
 
-# Initialize Whisper model
-model = whisper.load_model("base")  # You can choose "tiny", "base", "small", "medium", or "large"
+# Lazy-loaded Whisper model (loads on first use)
+_whisper_model = None
+_whisper_lock = None
+
+def get_whisper_model():
+    """Lazy load and cache the Whisper model."""
+    global _whisper_model, _whisper_lock
+    
+    # Initialize lock on first call
+    if _whisper_lock is None:
+        import threading
+        _whisper_lock = threading.Lock()
+    
+    if _whisper_model is None:
+        with _whisper_lock:
+            # Double-check after acquiring lock
+            if _whisper_model is None:
+                logger.info("Lazy loading Whisper model (base)...")
+                _whisper_model = whisper.load_model("base")
+                logger.info("Whisper model loaded successfully")
+    
+    return _whisper_model
 
 @app.route("/api/python")
 def hello_world():
@@ -571,6 +683,57 @@ def text_to_speech():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
+def extract_video_frames(video_path, fps=0.5):
+    """
+    Extract frames from video at specified FPS.
+    Default: 0.5 FPS (1 frame every 2 seconds)
+    
+    Returns:
+        List of (timestamp, frame_array) tuples
+    """
+    frames = []
+    cap = cv2.VideoCapture(video_path)
+    
+    if not cap.isOpened():
+        logger.error(f"Failed to open video: {video_path}")
+        return frames
+    
+    # Get video properties
+    video_fps = cap.get(cv2.CAP_PROP_FPS)
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    duration = total_frames / video_fps if video_fps > 0 else 0
+    
+    logger.info(f"Video FPS: {video_fps}, Duration: {duration}s, Total frames: {total_frames}")
+    
+    # Calculate frame interval
+    frame_interval = int(video_fps / fps) if fps > 0 else int(video_fps * 2)
+    
+    frame_count = 0
+    extracted_count = 0
+    
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+        
+        # Extract frame at intervals
+        if frame_count % frame_interval == 0:
+            timestamp = frame_count / video_fps if video_fps > 0 else extracted_count * 2
+            frames.append((timestamp, frame))
+            extracted_count += 1
+            logger.info(f"Extracted frame at {timestamp:.2f}s")
+        
+        frame_count += 1
+    
+    cap.release()
+    logger.info(f"Extracted {len(frames)} frames from video")
+    return frames
+
+
+
+
+
+
 @app.route("/api/upload-video", methods=['POST'])
 def upload_video():
     """Handles video file uploads and saves them locally"""
@@ -582,7 +745,7 @@ def upload_video():
         
         if video_file.filename == '':
             return jsonify({"error": "No selected file"}), 400
-            
+        
         # Create uploads directory if it doesn't exist
         upload_dir = os.path.join(os.getcwd(), 'uploads')
         os.makedirs(upload_dir, exist_ok=True)
@@ -629,13 +792,64 @@ def upload_video():
                 print("FFmpeg not found")
                 has_audio = False
         
-        return jsonify({
+        
+        # Extract frames and analyze emotions
+        logger.info("Starting video frame extraction for emotion analysis...")
+        emotion_timeline = []
+        emotion_timestamps = []
+        
+        try:
+            # Extract frames from video (1 frame every 2 seconds)
+            frames = extract_video_frames(video_path, fps=0.5)
+            logger.info(f"Extracted {len(frames)} frames for analysis")
+            
+            # Analyze emotion in each frame
+            for timestamp, frame in frames:
+                try:
+                    # Convert cv2 frame (BGR) to PIL Image (RGB)
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    pil_image = Image.fromarray(frame_rgb)
+                    
+                    # Detect emotions using existing function
+                    emotion_result = detect_emotions(pil_image)
+                    
+                    if emotion_result and 'emotions' in emotion_result:
+                        emotion_timeline.append(emotion_result['emotions'])
+                        emotion_timestamps.append(timestamp)
+                        logger.info(f"Frame at {timestamp:.2f}s - Dominant: {emotion_result['emotions'].get('dominant', 'unknown')}")
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to analyze frame at {timestamp:.2f}s: {e}")
+                    continue
+            
+            logger.info(f"Successfully analyzed {len(emotion_timeline)} frames")
+            
+        except Exception as e:
+            logger.error(f"Error during frame extraction/analysis: {e}")
+            # Continue even if emotion analysis fails
+        
+        
+        response_data = {
             "success": True,
             "message": "Video uploaded successfully",
             "filename": video_filename,
             "audio_filename": audio_filename if has_audio else None,
             "has_audio": has_audio
-        })
+        }
+        
+        # Save emotion timeline and add to response
+        if emotion_timeline:
+            emotion_file = os.path.join(upload_dir, f"recording_{timestamp}_emotions.json")
+            emotion_data = {
+                "emotions": emotion_timeline,
+                "timestamps": emotion_timestamps
+            }
+            with open(emotion_file, 'w') as f:
+                json.dump(emotion_data, f)
+            response_data['has_emotions'] = True
+            response_data['emotion_count'] = len(emotion_timeline)
+        
+        return jsonify(response_data)
         
     except Exception as e:
         print("Video Upload Error:", str(e))
@@ -651,7 +865,8 @@ def transcribe_long_audio(audio_path, max_duration=30):
         # Transcribe directly without duration checking
         # Whisper can handle short and long audio automatically
         print(f"Transcribing audio file directly with Whisper...")
-        result = model.transcribe(audio_path, language='en', fp16=False)
+        whisper_model = get_whisper_model()
+        result = whisper_model.transcribe(audio_path, language='en', fp16=False)
         transcribed_text = result.get("text", "").strip()
         print(f"Whisper result object keys: {result.keys()}")
         print(f"Raw transcription: '{transcribed_text}'")
@@ -674,17 +889,22 @@ def transcribe():
         print("Starting transcription request...")
         temp_dir = os.path.join(os.getcwd(), 'temp')
         os.makedirs(temp_dir, exist_ok=True)
-
-        temp_input = os.path.join(temp_dir, "temp_input.mp4")
         temp_audio = os.path.join(temp_dir, "temp_audio.mp3")
-        
+
         if 'file' not in request.files:
             return jsonify({"error": "No file provided"}), 400
             
         file = request.files['file']
         if file.filename == '':
             return jsonify({"error": "No selected file"}), 400
+
+        # Get extension from original filename
+        _, ext = os.path.splitext(file.filename)
+        if not ext:
+            ext = '.mp4' # Default fallback
             
+        temp_input = os.path.join(temp_dir, f"temp_input{ext}")
+        
         print(f"Received file: {file.filename}, mimetype: {file.content_type}")
         # Save and verify input file
         file.save(temp_input)
@@ -695,13 +915,15 @@ def transcribe():
             raise Exception("Input file is empty")
 
         # Skip FFmpeg conversion - transcribe the input file directly
-        # Whisper can handle webm/mp4 files directly
+        # Whisper can handle webm/mp4/wav files directly
         print(f"Transcribing input file directly: {temp_input}")
         text = transcribe_long_audio(temp_input)
         print(f"Transcription result: '{text}' (length: {len(text) if text else 0})")
         
         if not text:
-            raise Exception("Transcription returned empty text - audio may be silent or incompatible")
+            print("WARNING: Transcription returned empty text")
+            text = " "  # Use a space to prevent downstream failures, or handle empty text in analysis
+            # We don't raise Exception here to allow the UI to receive a response
         
         
         # Comprehensive speech analysis
@@ -753,14 +975,55 @@ def transcribe():
             'confidence_level': confidence_level,
             'confidence_emoji': confidence_emoji
         }
+        
+        # Try to load and analyze emotions if available
+        emotion_analysis = None
+        try:
+            # Extract base filename from uploaded file to find matching emotion file
+            original_filename = file.filename
+            # Look for emotion JSON file in uploads directory
+            upload_dir = os.path.join(os.getcwd(), 'uploads')
             
-        return jsonify({
+            # Try to find emotion file by looking for recent JSON files
+            if os.path.exists(upload_dir):
+                # Get all emotion JSON files sorted by modification time (newest first)
+                emotion_files = [f for f in os.listdir(upload_dir) if f.endswith('_emotions.json')]
+                if emotion_files:
+                    # Use the most recent one
+                    emotion_files.sort(key=lambda x: os.path.getmtime(os.path.join(upload_dir, x)), reverse=True)
+                    emotion_file_path = os.path.join(upload_dir, emotion_files[0])
+                    
+                    print(f"Loading emotions from: {emotion_file_path}")
+                    with open(emotion_file_path, 'r') as f:
+                        data = json.load(f)
+                        # Handle both list (legacy) and dict (new) formats
+                        if isinstance(data, dict) and 'emotions' in data:
+                            emotion_timeline = data['emotions']
+                        else:
+                            emotion_timeline = data
+                    
+                    if emotion_timeline and isinstance(emotion_timeline, list) and len(emotion_timeline) > 0:
+                        emotion_analysis = analyze_emotional_journey(emotion_timeline)
+                        print(f"Emotion analysis complete: {emotion_analysis.get('dominant_emotion')}")
+        except Exception as e:
+            print(f"Could not load emotion analysis: {e}")
+            # Don't fail the request if emotions aren't available
+            pass
+            
+        response_data = {
             "text": text,
             "analysis": analysis
-        })
+        }
+        
+        # Include emotion analysis if available
+        if emotion_analysis:
+            response_data['emotion_analysis'] = emotion_analysis
+            
+        return jsonify(response_data)
             
     except Exception as e:
         print(f"General Error: {str(e)}")
+        traceback.print_exc()
         traceback.print_exc()
         return jsonify({"error": "Failed to process request"}), 500
     finally:
@@ -832,7 +1095,8 @@ def detect_gaze():
         # Create MediaPipe Image
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_arr)
         
-        # Detect face landmarks
+        # Detect face landmarks using lazy-loaded detector
+        detector = get_face_detector()
         detection_result = detector.detect(mp_image)
         
         # If no faces detected, return empty result
@@ -925,9 +1189,10 @@ def detect_combined():
         # Process emotions
         emotion_result = detect_emotions(image)
         
-        # Process gaze
+        # Process gaze using lazy-loaded detector
         image_arr = np.array(image)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_arr)
+        detector = get_face_detector()
         detection_result = detector.detect(mp_image)
         
         # If no faces detected
@@ -1058,7 +1323,7 @@ def enhance_audio():
                 os.makedirs(temp_dir, exist_ok=True)
                 
                 temp_audio = os.path.join(temp_dir, "temp_audio.wav")
-
+                temp_input = os.path.join(temp_dir, "temp_input.mp4") # Default to mp4, will overwrite if file saved
                 
                 file = request.files['file']
                 logger.info(f"Received file: {file.filename}, mimetype: {file.content_type}")
@@ -1263,12 +1528,24 @@ def enhance_audio():
         # Generate speech from enhanced text - THIS MUST NOT FAIL
         logger.info(f"Generating TTS with speed: {speech_speed}")
         
+        # LOGGING PAYLOAD FOR DEBUGGING
+        logger.info(f"Enhanced text length: {len(enhanced_text)}")
+        logger.info(f"Enhanced text preview: {enhanced_text[:100]}...")
+        if not enhanced_text or not enhanced_text.strip():
+            logger.warning("Enhanced text is empty! Using fallback.")
+            enhanced_text = "Good job on your practice. Keep improving your skills."
+
         try:
             # Create a fresh client 
             sse = client.tts.SSEClient()
             sse.speed = speech_speed
             
             # Send request with timeout handling
+            # Clean text of potentially problematic characters if needed, but UTF-8 should be fine.
+            # Just ensure it's a string.
+            if not isinstance(enhanced_text, str):
+                enhanced_text = str(enhanced_text)
+
             response = sse.send(enhanced_text)
             
             # Save to temporary buffer
@@ -1307,6 +1584,9 @@ def enhance_audio():
         except Exception as tts_error:
             logger.error(f"TTS generation error: {str(tts_error)}")
             traceback.print_exc()
+            # If it's a 400 error, it might be the content.
+            if "400" in str(tts_error):
+                logger.error("Got 400 error. Text payload might be invalid.")
             return jsonify({"error": f"Speech generation failed: {str(tts_error)}"}), 500
         
     except Exception as e:

@@ -40,6 +40,14 @@ interface RecordingAnalysis {
   duration: number;
 }
 
+interface EmotionAnalysis {
+  dominant_emotion: string;
+  emotional_stability: number;
+  engagement_score: number;
+  emotion_distribution: { [key: string]: number };
+  mood_consistency: number;
+}
+
 interface Analysis {
   total_words: number;
   filler_count: number;
@@ -48,6 +56,7 @@ interface Analysis {
   filler_emoji: string;
   ttr_analysis: TTRAnalysis;
   logical_flow: LogicalFlowAnalysis;
+  emotion_analysis?: EmotionAnalysis;
 }
 
 interface FeedbackStep {
@@ -113,29 +122,25 @@ function SpeechFeedback({
       {
         id: "stats",
         title: "Speech Statistics",
-        content: `You used ${analysis.total_words} total words, with ${
-          analysis.ttr_analysis.unique_words
-        } being unique. Your logical flow score is ${Math.round(
-          analysis.logical_flow.score * 100
-        )}%.`,
+        content: `You used ${analysis.total_words} total words, with ${analysis.ttr_analysis.unique_words
+          } being unique. Your logical flow score is ${Math.round(
+            analysis.logical_flow.score * 100
+          )}%.`,
         emoji: "📊",
       },
       {
         id: "emotions",
         title: "Emotional Tone",
-        content: `Your speech mostly sounded ${
-          recordingAnalysis.emotions[0]?.emotion.toLowerCase() || "neutral"
-        }, with some moments of ${
-          recordingAnalysis.emotions[1]?.emotion.toLowerCase() || "variation"
-        }.`,
+        content: `Your speech mostly sounded ${recordingAnalysis.emotions[0]?.emotion.toLowerCase() || "neutral"
+          }, with some moments of ${recordingAnalysis.emotions[1]?.emotion.toLowerCase() || "variation"
+          }.`,
         emoji: "🎭",
       },
       {
         id: "gaze",
         title: "Eye Direction",
-        content: `You were mostly looking ${
-          recordingAnalysis.gaze[0]?.direction.toLowerCase() || "forward"
-        } during your speech.`,
+        content: `You were mostly looking ${recordingAnalysis.gaze[0]?.direction.toLowerCase() || "forward"
+          } during your speech.`,
         emoji: "👀",
       },
     ];
@@ -186,12 +191,12 @@ function SpeechFeedback({
       analysis.ttr_analysis.diversity_level === "very high"
         ? 95
         : analysis.ttr_analysis.diversity_level === "high"
-        ? 85
-        : analysis.ttr_analysis.diversity_level === "average"
-        ? 70
-        : analysis.ttr_analysis.diversity_level === "low"
-        ? 50
-        : 30;
+          ? 85
+          : analysis.ttr_analysis.diversity_level === "average"
+            ? 70
+            : analysis.ttr_analysis.diversity_level === "low"
+              ? 50
+              : 30;
 
     // Logical flow is already a percentage
     const flowScore = analysis.logical_flow.score;
@@ -239,9 +244,8 @@ function SpeechFeedback({
                   r="40"
                   fill="transparent"
                   strokeDasharray={`${2 * Math.PI * 40}`}
-                  strokeDashoffset={`${
-                    2 * Math.PI * 40 * (1 - overallScore / 100)
-                  }`}
+                  strokeDashoffset={`${2 * Math.PI * 40 * (1 - overallScore / 100)
+                    }`}
                   transform="rotate(-90 50 50)"
                 />
                 <text
@@ -263,12 +267,12 @@ function SpeechFeedback({
                 {overallScore >= 90
                   ? "Excellent!"
                   : overallScore >= 80
-                  ? "Great job!"
-                  : overallScore >= 70
-                  ? "Good work!"
-                  : overallScore >= 60
-                  ? "Room for improvement"
-                  : "Keep practicing"}
+                    ? "Great job!"
+                    : overallScore >= 70
+                      ? "Good work!"
+                      : overallScore >= 60
+                        ? "Room for improvement"
+                        : "Keep practicing"}
               </p>
             </div>
           </div>
@@ -306,9 +310,9 @@ function SpeechFeedback({
             onClick={
               isPlaying
                 ? () => {
-                    audioRef.current?.pause();
-                    setIsPlaying(false);
-                  }
+                  audioRef.current?.pause();
+                  setIsPlaying(false);
+                }
                 : startPlayback
             }
             disabled={!steps.length}
@@ -383,9 +387,8 @@ function SpeechFeedback({
             {steps.map((_, i) => (
               <button
                 key={i}
-                className={`w-2.5 h-2.5 rounded-full transition-colors ${
-                  i === currentStep ? "bg-primary" : "bg-muted"
-                }`}
+                className={`w-2.5 h-2.5 rounded-full transition-colors ${i === currentStep ? "bg-primary" : "bg-muted"
+                  }`}
                 onClick={() => setCurrentStep(i)}
                 aria-label={`Step ${i + 1}`}
               />
@@ -467,7 +470,9 @@ export default function RecordingPage() {
 
       // Only set state if the request wasn't aborted
       if (!signal?.aborted) {
-        setTranscription(result.text);
+        // Handle empty or whitespace-only text
+        const transcriptionText = result.text?.trim() ? result.text : "No speech detected in this recording.";
+        setTranscription(transcriptionText);
         setAnalysis(result.analysis);
       }
     } catch (error) {
@@ -661,9 +666,27 @@ export default function RecordingPage() {
         });
       } else {
         console.log("No analysis data found in localStorage");
+
+        // Fallback: Use backend analysis if available
+        if (analysis?.emotion_analysis?.emotion_distribution) {
+          console.log("Using backend analysis for visualization");
+          const backendEmotions = Object.entries(analysis.emotion_analysis.emotion_distribution)
+            .map(([emotion, value]) => ({
+              emotion,
+              percentage: ((value as number) * 100).toFixed(1) // Cast value to number as it comes from JSON
+            }))
+            .sort((a, b) => parseFloat(b.percentage) - parseFloat(a.percentage))
+            .slice(0, 3);
+
+          setRecordingAnalysis({
+            emotions: backendEmotions as any,
+            gaze: [{ direction: "Center", percentage: "100" }], // Default gaze if missing
+            duration: 0 // Unknown duration if not in local storage
+          });
+        }
       }
     }
-  }, [filename]);
+  }, [filename, analysis]); // Added analysis to dependencies
 
   // Helper functions for analysis
   const getTopEmotions = (
@@ -695,7 +718,7 @@ export default function RecordingPage() {
       .map(({ emotion, average }) => ({
         emotion,
         percentage: (average * 100).toFixed(1),
-      }));
+      })) as any;
   };
 
   const getDominantGazeDirection = (
@@ -854,12 +877,12 @@ export default function RecordingPage() {
                             analysis.filler_percentage >= 18
                               ? "rgb(239 68 68)" // red-500 (bad)
                               : analysis.filler_percentage >= 12
-                              ? "rgb(249 115 22)" // orange-500
-                              : analysis.filler_percentage >= 7
-                              ? "rgb(234 179 8)" // yellow-500
-                              : analysis.filler_percentage >= 3
-                              ? "rgb(132 204 22)" // lime-500
-                              : "rgb(34 197 94)" // green-500 (good)
+                                ? "rgb(249 115 22)" // orange-500
+                                : analysis.filler_percentage >= 7
+                                  ? "rgb(234 179 8)" // yellow-500
+                                  : analysis.filler_percentage >= 3
+                                    ? "rgb(132 204 22)" // lime-500
+                                    : "rgb(34 197 94)" // green-500 (good)
                           }
                           background={{ fill: "hsl(var(--muted))" }}
                         />
@@ -879,12 +902,12 @@ export default function RecordingPage() {
                           {analysis.filler_percentage >= 18
                             ? "Whoa! You're using quite a few filler words — let's work on that!"
                             : analysis.filler_percentage >= 12
-                            ? "Not bad, but you could cut back on some of those filler words"
-                            : analysis.filler_percentage >= 7
-                            ? "You're right in the middle — keep practicing!"
-                            : analysis.filler_percentage >= 3
-                            ? "Nice job keeping those filler words in check!"
-                            : "Wow, you're crushing it! Barely any filler words!"}
+                              ? "Not bad, but you could cut back on some of those filler words"
+                              : analysis.filler_percentage >= 7
+                                ? "You're right in the middle — keep practicing!"
+                                : analysis.filler_percentage >= 3
+                                  ? "Nice job keeping those filler words in check!"
+                                  : "Wow, you're crushing it! Barely any filler words!"}
                         </p>
                       </div>
                       <div className="space-y-2 pt-4">
@@ -900,13 +923,13 @@ export default function RecordingPage() {
                           {analysis.ttr_analysis.diversity_level === "very high"
                             ? "Outstanding vocabulary range! You're using a rich and diverse set of words."
                             : analysis.ttr_analysis.diversity_level === "high"
-                            ? "Great word variety! Your vocabulary is quite diverse."
-                            : analysis.ttr_analysis.diversity_level ===
-                              "average"
-                            ? "You're using a good mix of words. Keep expanding your vocabulary!"
-                            : analysis.ttr_analysis.diversity_level === "low"
-                            ? "Try incorporating more varied words to enhance your speech."
-                            : "Consider broadening your vocabulary to make your speech more engaging."}
+                              ? "Great word variety! Your vocabulary is quite diverse."
+                              : analysis.ttr_analysis.diversity_level ===
+                                "average"
+                                ? "You're using a good mix of words. Keep expanding your vocabulary!"
+                                : analysis.ttr_analysis.diversity_level === "low"
+                                  ? "Try incorporating more varied words to enhance your speech."
+                                  : "Consider broadening your vocabulary to make your speech more engaging."}
                         </p>
                       </div>
                       <div className="space-y-2 pt-4">
@@ -922,12 +945,12 @@ export default function RecordingPage() {
                           {analysis.logical_flow.score >= 80
                             ? "Excellent logical flow! Your ideas connect seamlessly."
                             : analysis.logical_flow.score >= 60
-                            ? "Good logical progression. Your points flow well together."
-                            : analysis.logical_flow.score >= 40
-                            ? "Average flow. Try to strengthen the connections between ideas."
-                            : analysis.logical_flow.score >= 20
-                            ? "The logical flow needs work. Focus on transitioning between points."
-                            : "Consider restructuring your speech for better logical progression."}
+                              ? "Good logical progression. Your points flow well together."
+                              : analysis.logical_flow.score >= 40
+                                ? "Average flow. Try to strengthen the connections between ideas."
+                                : analysis.logical_flow.score >= 20
+                                  ? "The logical flow needs work. Focus on transitioning between points."
+                                  : "Consider restructuring your speech for better logical progression."}
                         </p>
                       </div>
                     </div>
@@ -967,6 +990,97 @@ export default function RecordingPage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Emotion Analysis from Recording */}
+                  {analysis.emotion_analysis && (
+                    <div className="border-t pt-8 mt-8">
+                      <h3 className="font-semibold mb-6 text-center text-xl">Facial Expression & Mood Analysis</h3>
+                      <div className="space-y-6">
+                        {/* Dominant Emotion - Professional Analysis */}
+                        <div className="bg-gradient-to-br from-purple-500/20 to-pink-500/10 p-6 rounded-xl border border-purple-400/30">
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-lg font-semibold text-purple-300">Dominant Emotional State</h4>
+                            <span className="text-3xl">
+                              {analysis.emotion_analysis.dominant_emotion === 'happy' ? '😊' :
+                                analysis.emotion_analysis.dominant_emotion === 'neutral' ? '😐' :
+                                  analysis.emotion_analysis.dominant_emotion === 'sad' ? '😢' :
+                                    analysis.emotion_analysis.dominant_emotion === 'angry' ? '😠' :
+                                      analysis.emotion_analysis.dominant_emotion === 'surprised' ? '😮' :
+                                        analysis.emotion_analysis.dominant_emotion === 'fearful' ? '😰' : '🙂'}
+                            </span>
+                          </div>
+                          <p className="text-2xl font-bold text-purple-400 capitalize mb-3">
+                            {analysis.emotion_analysis.dominant_emotion}
+                          </p>
+                          <p className="text-sm text-purple-200/90 leading-relaxed">
+                            {analysis.emotion_analysis.dominant_emotion === 'happy'
+                              ? 'Your facial expressions predominantly conveyed happiness and positivity throughout the recording. This suggests a confident and enthusiastic delivery, which typically resonates well with audiences.'
+                              : analysis.emotion_analysis.dominant_emotion === 'neutral'
+                                ? 'Your expressions remained largely neutral during the recording. While this demonstrates composure and professionalism, consider incorporating more varied facial expressions to enhance audience engagement and convey enthusiasm about your subject matter.'
+                                : analysis.emotion_analysis.dominant_emotion === 'sad'
+                                  ? 'Your facial expressions showed signs of sadness or concern. If this was intentional for the context of your speech, it shows good emotional alignment. However, if unintended, consider practicing with more positive or neutral expressions to better engage your audience.'
+                                  : analysis.emotion_analysis.dominant_emotion === 'surprised'
+                                    ? 'Your expressions frequently showed surprise or interest. This can be effective for storytelling and maintaining audience attention, though ensure it aligns with your content to avoid appearing unfocused.'
+                                    : 'Your dominant emotional expression was detected throughout the recording. Consider whether this aligns with your intended message and adjust your facial expressions accordingly for future presentations.'}
+                          </p>
+                        </div>
+
+                        {/* Engagement Score - Professional Analysis */}
+                        <div className="bg-gradient-to-br from-green-500/20 to-emerald-500/10 p-6 rounded-xl border border-green-400/30">
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-lg font-semibold text-green-300">Expressiveness & Engagement</h4>
+                            <span className="text-3xl">💪</span>
+                          </div>
+                          <div className="flex items-baseline gap-3 mb-3">
+                            <p className="text-4xl font-bold text-green-400">
+                              {analysis.emotion_analysis.engagement_score}%
+                            </p>
+                            <p className="text-sm text-green-300">
+                              {analysis.emotion_analysis.engagement_score >= 80 ? 'Excellent' :
+                                analysis.emotion_analysis.engagement_score >= 60 ? 'Good' :
+                                  analysis.emotion_analysis.engagement_score >= 40 ? 'Moderate' : 'Needs Improvement'}
+                            </p>
+                          </div>
+                          <p className="text-sm text-green-200/90 leading-relaxed">
+                            {analysis.emotion_analysis.engagement_score >= 80
+                              ? 'You demonstrated high expressiveness with dynamic facial movements throughout your presentation. This level of engagement helps maintain audience attention and conveys passion for your subject matter. Your animated expressions effectively complemented your verbal communication.'
+                              : analysis.emotion_analysis.engagement_score >= 60
+                                ? 'Your facial expressions showed good variation and engagement. While you conveyed emotions effectively, there is room to be more expressive during key points. Try emphasizing important moments with more pronounced facial reactions to enhance impact.'
+                                : analysis.emotion_analysis.engagement_score >= 40
+                                  ? 'Your expressions showed moderate engagement with some static periods. To improve, practice varying your facial expressions more throughout your delivery. Use a mirror or record yourself to identify opportunities for more dynamic expression, especially during important points.'
+                                  : 'Your facial expressions remained relatively static during the recording. This can make presentations feel monotonous. Practice incorporating more facial variation—smile when appropriate, show concern when discussing challenges, and let your face naturally reflect the emotions in your content.'}
+                          </p>
+                        </div>
+
+                        {/* Emotional Stability - Professional Analysis */}
+                        <div className="bg-gradient-to-br from-blue-500/20 to-cyan-500/10 p-6 rounded-xl border border-blue-400/30">
+                          <div className="flex items-center justify-between mb-4">
+                            <h4 className="text-lg font-semibold text-blue-300">Emotional Consistency</h4>
+                            <span className="text-3xl">🎯</span>
+                          </div>
+                          <div className="flex items-baseline gap-3 mb-3">
+                            <p className="text-4xl font-bold text-blue-400">
+                              {Math.round(analysis.emotion_analysis.emotional_stability * 100)}%
+                            </p>
+                            <p className="text-sm text-blue-300">
+                              {analysis.emotion_analysis.emotional_stability >= 0.8 ? 'Highly Consistent' :
+                                analysis.emotion_analysis.emotional_stability >= 0.6 ? 'Consistent' :
+                                  analysis.emotion_analysis.emotional_stability >= 0.4 ? 'Moderately Stable' : 'Variable'}
+                            </p>
+                          </div>
+                          <p className="text-sm text-blue-200/90 leading-relaxed">
+                            {analysis.emotion_analysis.emotional_stability >= 0.8
+                              ? 'Your emotional state remained remarkably consistent throughout the recording. This demonstrates strong emotional control and professionalism, which helps maintain audience focus on your message rather than being distracted by erratic expressions.'
+                              : analysis.emotion_analysis.emotional_stability >= 0.6
+                                ? 'Your emotions showed good consistency with natural variations. This balance between stability and expressiveness is ideal for most presentations, as it maintains professionalism while showing genuine engagement with your content.'
+                                : analysis.emotion_analysis.emotional_stability >= 0.4
+                                  ? 'Your emotional expressions varied moderately during the recording. While some variation is natural and can enhance storytelling, ensure that emotional shifts align with your content. Practice maintaining more consistent baseline expressions between key emotional moments.'
+                                  : 'Your facial expressions showed significant fluctuation during the recording. While emotional variation can be effective for emphasis, excessive changes may appear unfocused. Work on maintaining a more stable baseline expression, reserving larger emotional shifts for important moments in your presentation.'}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Integrated Emotion and Gaze Analysis here */}
                   {recordingAnalysis && (
