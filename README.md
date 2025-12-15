@@ -472,23 +472,6 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ---
 
-## 🙏 Acknowledgments
-
-- **MediaPipe** team for facial landmark detection
-- **HuggingFace** for transformer models
-- **OpenAI** for Whisper speech recognition
-- **Neuphonic** for enhanced audio processing
-- **Edlitera** for microexpression detection techniques
-
----
-
-## 📞 Contact & Support
-
-- **GitHub Issues**: [Report bugs or request features](https://github.com/Shreyyy07/Vocalyst-Main/issues)
-- **Email**: [Your Email]
-- **Documentation**: [Full Documentation](#) *(Coming Soon)*
-
----
 
 <div align="center">
 
