@@ -82,7 +82,7 @@ const modeCardVariants = {
   animate: { opacity: 1, scale: 1 },
   hover: {
     scale: 1.02,
-    borderColor: "hsl(var(--primary) / 0.5)",
+    borderColor: "rgba(255, 255, 255, 0.5)",
     transition: { duration: 0.2 },
   },
   tap: { scale: 0.98 },
@@ -373,6 +373,14 @@ export default function PracticePage() {
         throw new Error("Failed to process frame");
       }
 
+
+      if (!response.ok) {
+        throw new Error("Failed to process frame");
+      }
+
+      // Re-check refs after async call to prevent null access if component unmounted
+      if (!videoRef.current || !canvasRef.current) return;
+
       const result = await response.json();
 
       if (result.success && result.face_detected) {
@@ -401,6 +409,8 @@ export default function PracticePage() {
           // Update canvas with gaze visualization
           const video = videoRef.current;
           const canvas = canvasRef.current;
+
+          if (!video || !canvas) return;
 
           // Get the display size
           const displayRect = video.getBoundingClientRect();

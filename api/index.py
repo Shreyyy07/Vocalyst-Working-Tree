@@ -1531,8 +1531,10 @@ def enhance_audio():
         # LOGGING PAYLOAD FOR DEBUGGING
         logger.info(f"Enhanced text length: {len(enhanced_text)}")
         logger.info(f"Enhanced text preview: {enhanced_text[:100]}...")
-        if not enhanced_text or not enhanced_text.strip():
-            logger.warning("Enhanced text is empty! Using fallback.")
+        
+        # Robust check for empty or whitespace-only text
+        if not enhanced_text or not str(enhanced_text).strip() or len(str(enhanced_text).strip()) < 2:
+            logger.warning("Enhanced text is empty or too short! Using fallback.")
             enhanced_text = "Good job on your practice. Keep improving your skills."
 
         try:
