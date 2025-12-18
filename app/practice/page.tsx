@@ -1,36 +1,24 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Mic, Square, RotateCcw } from "lucide-react";
+import DetailedAnalysis from "@/components/DetailedAnalysis";
+import { Analysis, RecordingAnalysis } from "@/components/SpeechFeedback";
 
-// Update the SpeechRecognitionEvent interface
-interface SpeechRecognitionEvent {
-  results: SpeechRecognitionResultList;
-  timeStamp: number;
+// --- Types ---
+interface PracticeMode {
+  id: string;
+  name: string;
+  description: string;
+  emoji: string;
+  prompts: string[];
 }
 
-interface SpeechRecognitionResultList {
-  length: number;
-  [index: number]: SpeechRecognitionResult;
-}
-
-interface SpeechRecognitionResult {
-  [index: number]: {
-    transcript: string;
-  };
-}
-
-interface Emotions {
+// Reuse Emotion types from CameraPage for consistency
+type Emotions = {
   neutral: number;
   happy: number;
   sad: number;
@@ -38,315 +26,208 @@ interface Emotions {
   fearful: number;
   disgusted: number;
   surprised: number;
-}
+};
 
-interface SpeechRecognition {
-  continuous: boolean;
-  interimResults: boolean;
-  onresult: (event: SpeechRecognitionEvent) => void;
-  start: () => void;
-  stop: () => void;
-}
-
-declare global {
-  interface Window {
-    SpeechRecognition: new () => SpeechRecognition;
-    webkitSpeechRecognition: new () => SpeechRecognition;
+const PRACTICE_MODES: PracticeMode[] = [
+  {
+    id: "persuasive",
+    name: "Persuasive",
+    description: "Learn to convince and influence others effectively.",
+    emoji: "🎯",
+    prompts: [
+      "I believe that remote work is the future of productivity. It allows employees to balance their lives better while reducing the carbon footprint associated with commuting. Companies that embrace this shift will access a global talent pool and reduce overhead costs significantly.",
+      "Climate change is not just an environmental issue; it is an economic one. Investing in renewable energy creates jobs, stabilizes energy prices, and ensures a sustainable future for our children. We cannot afford inaction.",
+      "Education should be free for everyone. By removing financial barriers, we unlock the potential of millions of brilliant minds who can contribute to science, art, and technology. It is an investment in our collective future."
+    ]
+  },
+  {
+    id: "emotive",
+    name: "Emotive",
+    description: "Express feelings and emotions clearly.",
+    emoji: "💝",
+    prompts: [
+      "I was so incredibly happy when I heard the news! It felt like a weight had been lifted off my shoulders, and suddenly, everything seemed possible again. I just wanted to dance!",
+      "It breaks my heart to see so many people struggling. I feel a deep sense of responsibility to help, to do something, anything, to make a difference in their lives.",
+      "I was terrified. The darkness seemed to close in around me, and every sound made me jump. I've never felt so alone and vulnerable in my entire life."
+    ]
+  },
+  {
+    id: "public-speaking",
+    name: "Public Speaking",
+    description: "Master speaking in front of audiences.",
+    emoji: "🎤",
+    prompts: [
+      "Good evening everyone. Today, I want to talk to you about the power of community. When we come together, we are stronger, more resilient, and more capable of overcoming any challenge.",
+      "Success is not measured by wealth, but by the impact we have on others. As we move forward in our careers, let us not forget to lift others up as we climb.",
+      "Thank you for being here. Your presence demonstrates a commitment to change. Together, we can build a world that is more just, equitable, and sustainable for all."
+    ]
+  },
+  {
+    id: "formal",
+    name: "Formal Conversation",
+    description: "Professional and business communication.",
+    emoji: "👔",
+    prompts: [
+      "I appreciate you taking the time to meet with me today. I would like to discuss the quarterly results and propose a new strategy for the upcoming fiscal year.",
+      "Regarding the project timeline, we are currently on schedule. However, I recommend allocating additional resources to the QA phase to ensure the highest quality deliverables.",
+      "It has been a pleasure doing business with you. We look forward to a continued and mutually beneficial partnership in the years to come."
+    ]
+  },
+  {
+    id: "storytelling",
+    name: "Storytelling",
+    description: "Engaging narrative communication.",
+    emoji: "📚",
+    prompts: [
+      "The old house stood on the hill, silent and imposing. Its windows were like dark eyes watching the village below. Legend had it that no one who entered ever returned.",
+      "It was a day like any other, until the letter arrived. The handwriting was familiar, yet I hadn't seen it in twenty years. My hands trembled as I tore open the envelope.",
+      "Once upon a time, in a land far away, there lived a young girl with a secret. She could speak to the stars, and they would whisper the secrets of the universe back to her."
+    ]
+  },
+  {
+    id: "debate",
+    name: "Debating",
+    description: "Structured argument and discussion.",
+    emoji: "⚖️",
+    prompts: [
+      "While I understand your point about economic growth, we must prioritize environmental protection. Short-term gains are meaningless if we destroy the planet in the process.",
+      "Social media has connected the world, but it has also created an echo chamber. We are losing the ability to have civil discourse with those who disagree with us.",
+      "Artificial Intelligence offers immense benefits, but we must implement strict regulations to prevent misuse and ensure it aligns with human values."
+    ]
   }
-}
-
-interface ConversationMode {
-  id: string;
-  name: string;
-  description: string;
-  tips: string[];
-  emoji: string;
-}
-
-const fadeIn = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -20 },
-};
-
-const staggerContainer = {
-  animate: {
-    transition: {
-      staggerChildren: 0.1,
-    },
-  },
-};
-
-const modeCardVariants = {
-  initial: { opacity: 0, scale: 0.9 },
-  animate: { opacity: 1, scale: 1 },
-  hover: {
-    scale: 1.02,
-    borderColor: "rgba(255, 255, 255, 0.5)",
-    transition: { duration: 0.2 },
-  },
-  tap: { scale: 0.98 },
-};
-
-const pulseVariants = {
-  initial: { scale: 1 },
-  animate: {
-    scale: [1, 1.1, 1],
-    transition: {
-      duration: 2,
-      repeat: Infinity,
-      ease: "easeInOut",
-    },
-  },
-};
-
-// Helper functions for analysis
-const getTopEmotions = (
-  emotionsData: Array<{ timestamp: number; emotions: Emotions }>
-) => {
-  // Calculate average emotion values
-  const emotionSums: { [key: string]: number } = {};
-  const emotionCounts: { [key: string]: number } = {};
-
-  emotionsData.forEach(({ emotions }) => {
-    Object.entries(emotions).forEach(([emotion, value]) => {
-      emotionSums[emotion] = (emotionSums[emotion] || 0) + value;
-      emotionCounts[emotion] = (emotionCounts[emotion] || 0) + 1;
-    });
-  });
-
-  // Calculate averages and sort
-  const averageEmotions = Object.entries(emotionSums).map(([emotion, sum]) => ({
-    emotion,
-    average: sum / emotionCounts[emotion],
-  }));
-
-  return averageEmotions
-    .sort((a, b) => b.average - a.average)
-    .slice(0, 3)
-    .map(({ emotion, average }) => ({
-      emotion,
-      percentage: (average * 100).toFixed(1),
-    }));
-};
-
-const getDominantGazeDirection = (
-  gazeData: Array<{ timestamp: number; direction: string }>
-) => {
-  const directionCounts: { [key: string]: number } = {};
-
-  gazeData.forEach(({ direction }) => {
-    directionCounts[direction] = (directionCounts[direction] || 0) + 1;
-  });
-
-  let dominantDirection = "";
-  let maxCount = 0;
-
-  Object.entries(directionCounts).forEach(([direction, count]) => {
-    if (count > maxCount) {
-      maxCount = count;
-      dominantDirection = direction;
-    }
-  });
-
-  const percentage = ((maxCount / gazeData.length) * 100).toFixed(1);
-  return { direction: dominantDirection, percentage };
-};
+];
 
 export default function PracticePage() {
-  const router = useRouter();
-  // Camera-related state
+  // --- State ---
+  const [selectedMode, setSelectedMode] = useState<PracticeMode | null>(null);
+  const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
+  const [view, setView] = useState<'selection' | 'practice' | 'results'>('selection');
+
+  // Recording State
   const [isStreaming, setIsStreaming] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [backendError, setBackendError] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [recordingError, setRecordingError] = useState<string | null>(null);
+  const [recordingDuration, setRecordingDuration] = useState(0);
   const [uploadedVideo, setUploadedVideo] = useState<string | null>(null);
   const [uploadedAudio, setUploadedAudio] = useState<string | null>(null);
-  const [separateAudioRecording, setSeparateAudioRecording] = useState(false);
-  const [gazeDirection, setGazeDirection] = useState<string>("center");
-  const [emotions, setEmotions] = useState<Emotions>({
-    neutral: 0,
-    happy: 0,
-    sad: 0,
-    angry: 0,
-    fearful: 0,
-    disgusted: 0,
-    surprised: 0,
-  });
-  const [recordingDuration, setRecordingDuration] = useState<number>(0);
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // Recording analysis state
-  const [recordingEmotions, setRecordingEmotions] = useState<
-    Array<{ timestamp: number; emotions: Emotions }>
-  >([]);
-  const [recordingGaze, setRecordingGaze] = useState<
-    Array<{ timestamp: number; direction: string }>
-  >([]);
-  const [analysisReady, setAnalysisReady] = useState(false);
+  // Analysis State
+  const [transcription, setTranscription] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [recordingAnalysis, setRecordingAnalysis] = useState<RecordingAnalysis | null>(null);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [enhancedAudio, setEnhancedAudio] = useState<string | null>(null);
 
-  // Add refs for storing recording data
-  const emotionsDataRef = useRef<
-    Array<{ timestamp: number; emotions: Emotions }>
-  >([]);
-  const gazeDataRef = useRef<Array<{ timestamp: number; direction: string }>>(
-    []
-  );
-
-  // Camera-related refs
+  // Refs
   const videoRef = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const audioRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const lowPassNodeRef = useRef<BiquadFilterNode | null>(null);
-  const highPassNodeRef = useRef<BiquadFilterNode | null>(null);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const [currentQuestion, setCurrentQuestion] = useState(1);
-  const [speechRate, setSpeechRate] = useState<number | null>(null);
-  const [speed, setSpeed] = useState([0]); // Default to normal speed
-  const [selectedMode, setSelectedMode] = useState<string | null>(null);
-  const [showPractice, setShowPractice] = useState(false);
-  const totalQuestions = 6;
+  // Data refs for recording accumulation
+  const emotionsDataRef = useRef<Array<{ timestamp: number; emotions: Emotions }>>([]);
+  const gazeDataRef = useRef<Array<{ timestamp: number; direction: string }>>([]);
 
-  const conversationModes: ConversationMode[] = [
-    {
-      id: "persuasive",
-      name: "Persuasive",
-      description: "Learn to convince and influence others effectively",
-      emoji: "🎯",
-      tips: [
-        "Use concrete evidence and examples",
-        "Address potential counterarguments",
-        "Maintain a confident and assertive tone",
-      ],
-    },
-    {
-      id: "emotive",
-      name: "Emotive",
-      description: "Express feelings and emotions clearly",
-      emoji: "💝",
-      tips: [
-        "Use appropriate emotional language",
-        "Match your tone to the emotion",
-        "Practice empathetic responses",
-      ],
-    },
-    {
-      id: "public-speaking",
-      name: "Public Speaking",
-      description: "Master speaking in front of audiences",
-      emoji: "🎤",
-      tips: [
-        "Project your voice clearly",
-        "Use engaging body language",
-        "Structure your speech with clear points",
-      ],
-    },
-
-    {
-      id: "formal-conversations",
-      name: "Formal Conversations",
-      description: "Professional and business communication",
-      emoji: "👔",
-      tips: [
-        "Maintain professional language",
-        "Be concise and clear",
-        "Use appropriate formal expressions",
-      ],
-    },
-    {
-      id: "debating",
-      name: "Debating",
-      description: "Structured argument and discussion",
-      emoji: "⚖️",
-      tips: [
-        "Present logical arguments",
-        "Listen actively to counterpoints",
-        "Support claims with evidence",
-      ],
-    },
-    {
-      id: "storytelling",
-      name: "Storytelling",
-      description: "Engaging narrative communication",
-      emoji: "📚",
-      tips: [
-        "Set up a clear narrative structure",
-        "Use descriptive language",
-        "Maintain audience engagement",
-      ],
-    },
-  ];
-
-  let recognition: SpeechRecognition | null = null;
-
+  // --- Persistence ---
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const SpeechRecognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
+    // Only restore if we are structurally mounted and not already holding state
+    if (selectedMode) return;
 
-        recognition.onresult = (event) => {
-          const last = event.results.length - 1;
-          const words = event.results[last][0].transcript.split(" ").length;
-          const duration = event.timeStamp / 1000; // convert to seconds
-          const wordsPerMinute = (words / duration) * 60;
-          setSpeechRate(Math.round(wordsPerMinute));
-        };
+    const savedState = localStorage.getItem("vocalyst-practice-state");
+    if (savedState) {
+      try {
+        const parsed = JSON.parse(savedState);
+        if (parsed.modeId && parsed.view) {
+          const mode = PRACTICE_MODES.find(m => m.id === parsed.modeId);
+          if (mode) {
+            console.log("Restoring practice state:", parsed);
+            setSelectedMode(mode);
+            setCurrentPromptIndex(parsed.promptIndex || 0);
+            setView(parsed.view === 'results' ? 'results' : 'practice');
+
+            // Restore data if available
+            if (parsed.transcription) setTranscription(parsed.transcription);
+            if (parsed.analysis) setAnalysis(parsed.analysis);
+            if (parsed.recordingAnalysis) setRecordingAnalysis(parsed.recordingAnalysis);
+            if (parsed.uploadedVideo) setUploadedVideo(parsed.uploadedVideo);
+            if (parsed.uploadedAudio) setUploadedAudio(parsed.uploadedAudio);
+
+            if (parsed.view === 'practice') {
+              setTimeout(() => startCamera(), 500);
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Failed to restore state", e);
       }
     }
-  }, []);
+  }, []); // Run ONCE on mount
 
-  const handleStartRecording = () => {
-    setIsRecording(true);
-    recognition?.start();
+  useEffect(() => {
+    if (selectedMode) {
+      const stateToSave = {
+        modeId: selectedMode.id,
+        promptIndex: currentPromptIndex,
+        view: view,
+        transcription,
+        analysis,
+        recordingAnalysis,
+        uploadedVideo,
+        uploadedAudio
+      };
+      localStorage.setItem("vocalyst-practice-state", JSON.stringify(stateToSave));
+    }
+  }, [selectedMode, currentPromptIndex, view, transcription, analysis, recordingAnalysis, uploadedVideo, uploadedAudio]);
+
+  // --- Actions ---
+
+  const handleModeSelect = (mode: PracticeMode) => {
+    setSelectedMode(mode);
+    setCurrentPromptIndex(0);
+    setView('practice');
+    startCamera();
   };
 
-  const handleStopRecording = () => {
+  const handleBack = () => {
+    stopCamera();
+    setView('selection');
+    setSelectedMode(null);
+    resetState();
+    localStorage.removeItem("vocalyst-practice-state");
+  };
+
+  const resetState = () => {
     setIsRecording(false);
-    recognition?.stop();
+    setIsUploading(false);
+    setRecordingDuration(0);
+    setUploadedVideo(null);
+    setUploadedAudio(null);
+    setTranscription(null);
+    setAnalysis(null);
+    setRecordingAnalysis(null);
+    setEnhancedAudio(null);
+    emotionsDataRef.current = [];
+    gazeDataRef.current = [];
   };
 
-  const handleModeSelect = (modeId: string) => {
-    setSelectedMode(modeId);
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  const handleStartPractice = () => {
-    setShowPractice(true);
-  };
-
-  const selectedModeData = selectedMode
-    ? conversationModes.find((mode) => mode.id === selectedMode)
-    : null;
-
-  // Camera-related functions
+  // --- Detection Logic (Copied from CameraPage for consistency) ---
   const detectCombined = async () => {
     if (!videoRef.current || !canvasRef.current || isProcessing) return;
 
     try {
       setIsProcessing(true);
-      setBackendError(null);
-
-      // Test connection first
-      const isConnected = await testApiConnection();
-      if (!isConnected) {
-        setIsProcessing(false);
-        return;
-      }
-
-      // Capture the current frame from video
-      const canvas = document.createElement("canvas");
+      const canvas = document.createElement("canvas"); // Use offscreen or ref
       canvas.width = videoRef.current.videoWidth;
       canvas.height = videoRef.current.videoHeight;
       const ctx = canvas.getContext("2d");
@@ -355,802 +236,393 @@ export default function PracticePage() {
       ctx.drawImage(videoRef.current, 0, 0);
       const imageData = canvas.toDataURL("image/jpeg", 0.8);
 
-      // Send to combined backend API
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5328"
-        }/api/detect-combined`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({ image: imageData }),
-        }
-      );
+      const response = await fetch("http://localhost:5328/api/detect-combined", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: imageData }),
+      });
 
-      if (!response.ok) {
-        throw new Error("Failed to process frame");
-      }
-
-
-      if (!response.ok) {
-        throw new Error("Failed to process frame");
-      }
-
-      // Re-check refs after async call to prevent null access if component unmounted
-      if (!videoRef.current || !canvasRef.current) return;
+      if (!response.ok) return; // Silent fail
 
       const result = await response.json();
 
       if (result.success && result.face_detected) {
-        // Update emotions
-        setEmotions(result.emotions);
-
-        // Store emotions and gaze data if recording
         if (isRecording) {
           const timestamp = Date.now();
-          const emotionsData = { timestamp, emotions: result.emotions };
-          const gazeData = result.gaze
-            ? { timestamp, direction: result.gaze.direction }
-            : null;
-
-          // Store in refs instead of state
-          emotionsDataRef.current.push(emotionsData);
-          if (gazeData) {
-            gazeDataRef.current.push(gazeData);
+          emotionsDataRef.current.push({ timestamp, emotions: result.emotions });
+          if (result.gaze) {
+            gazeDataRef.current.push({ timestamp, direction: result.gaze.direction });
           }
-        }
-
-        // Update gaze
-        if (result.gaze) {
-          setGazeDirection(result.gaze.direction);
-
-          // Update canvas with gaze visualization
-          const video = videoRef.current;
-          const canvas = canvasRef.current;
-
-          if (!video || !canvas) return;
-
-          // Get the display size
-          const displayRect = video.getBoundingClientRect();
-          const displayWidth = displayRect.width;
-          const displayHeight = displayRect.height;
-
-          // Update canvas size if needed
-          if (
-            canvas.width !== displayWidth ||
-            canvas.height !== displayHeight
-          ) {
-            canvas.width = displayWidth;
-            canvas.height = displayHeight;
-          }
-
-          // If recording, clear the canvas and return
-          if (isRecording) {
-            const overlayCtx = canvas.getContext("2d");
-            if (overlayCtx) {
-              overlayCtx.clearRect(0, 0, displayWidth, displayHeight);
-            }
-            return;
-          }
-
-          // Calculate scaling factors
-          const scaleX = displayWidth / video.videoWidth;
-          const scaleY = displayHeight / video.videoHeight;
-          const scale = Math.min(scaleX, scaleY);
-
-          // Calculate centering offsets
-          const offsetX = (displayWidth - video.videoWidth * scale) / 2;
-          const offsetY = (displayHeight - video.videoHeight * scale) / 2;
-
-          // Get overlay context
-          const overlayCtx = canvas.getContext("2d", {
-            willReadFrequently: true,
-          });
-          if (!overlayCtx) return;
-
-          // Clear previous drawings
-          overlayCtx.clearRect(0, 0, displayWidth, displayHeight);
-
-          // Set up transform for proper scaling and centering
-          overlayCtx.save();
-          overlayCtx.translate(offsetX, offsetY);
-          overlayCtx.scale(scale, scale);
-
-          // Draw minimal face outline
-          if (result.gaze.landmarks) {
-            overlayCtx.strokeStyle = "rgba(255, 255, 255, 0.3)"; // Very subtle white outline
-            overlayCtx.lineWidth = 1;
-
-            // Draw face outline using selected landmarks
-            const faceOutlinePoints = result.gaze.landmarks.filter(
-              (_: [number, number], index: number) =>
-                // Only use points that form the face outline
-                [
-                  10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288,
-                  397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136,
-                  172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109,
-                ].includes(index)
-            );
-
-            if (faceOutlinePoints.length > 0) {
-              overlayCtx.beginPath();
-              overlayCtx.moveTo(
-                faceOutlinePoints[0][0] * video.videoWidth,
-                faceOutlinePoints[0][1] * video.videoHeight
-              );
-
-              faceOutlinePoints.forEach((point: [number, number]) => {
-                overlayCtx.lineTo(
-                  point[0] * video.videoWidth,
-                  point[1] * video.videoHeight
-                );
-              });
-
-              overlayCtx.closePath();
-              overlayCtx.stroke();
-            }
-          }
-
-          // Draw minimal gaze indicator
-          if (result.gaze.gaze_arrow) {
-            const { start, end } = result.gaze.gaze_arrow;
-            overlayCtx.strokeStyle = "rgba(255, 255, 255, 0.4)"; // Subtle white
-            overlayCtx.lineWidth = 2;
-
-            // Draw a simple dot at the eye center
-            overlayCtx.beginPath();
-            overlayCtx.arc(
-              start.x * video.videoWidth,
-              start.y * video.videoHeight,
-              3,
-              0,
-              2 * Math.PI
-            );
-            overlayCtx.fill();
-
-            // Draw a small line indicating direction
-            overlayCtx.beginPath();
-            overlayCtx.moveTo(
-              start.x * video.videoWidth,
-              start.y * video.videoHeight
-            );
-            overlayCtx.lineTo(
-              end.x * video.videoWidth,
-              end.y * video.videoHeight
-            );
-            overlayCtx.stroke();
-          }
-
-          // Draw minimal gaze direction text
-          overlayCtx.font = "16px system-ui"; // Smaller, system font
-          overlayCtx.textBaseline = "top";
-          const text = result.gaze.direction.toUpperCase();
-
-          overlayCtx.fillStyle = "rgba(255, 255, 255, 0.5)";
-          overlayCtx.fillText(text, 10, 10);
-
-          // Restore the original transform
-          overlayCtx.restore();
         }
       }
     } catch (error) {
-      console.error("Error in combined detection:", error);
-      setBackendError(
-        error instanceof Error
-          ? error.message
-          : "Failed to process frame. Please try again."
-      );
+      // console.error(error); 
     } finally {
       setIsProcessing(false);
     }
   };
 
+  const processLocalAnalysisData = (duration: number) => {
+    // 1. Emotions
+    const emotionSums: Record<string, number> = {};
+    const emotionCounts: Record<string, number> = {};
+
+    emotionsDataRef.current.forEach(({ emotions }) => {
+      Object.entries(emotions).forEach(([e, v]) => {
+        emotionSums[e] = (emotionSums[e] || 0) + v;
+        emotionCounts[e] = (emotionCounts[e] || 0) + 1;
+      });
+    });
+
+    const averageEmotions = Object.entries(emotionSums)
+      .map(([emotion, sum]) => ({
+        emotion,
+        average: sum / emotionCounts[emotion]
+      }))
+      .sort((a, b) => b.average - a.average)
+      .slice(0, 3)
+      .map(({ emotion, average }) => ({
+        emotion,
+        percentage: (average * 100).toFixed(1)
+      }));
+
+    // Fallback if no emotions detected
+    const finalEmotions = averageEmotions.length > 0
+      ? averageEmotions
+      : [{ emotion: 'neutral', percentage: '100.0' }];
+
+    // 2. Gaze
+    const directionCounts: Record<string, number> = {};
+    gazeDataRef.current.forEach(({ direction }) => {
+      directionCounts[direction] = (directionCounts[direction] || 0) + 1;
+    });
+    const sortedGaze = Object.entries(directionCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 3)
+      .map(([direction, count]) => ({
+        direction,
+        percentage: ((count / Math.max(1, gazeDataRef.current.length)) * 100).toFixed(1)
+      }));
+
+    const finalGaze = sortedGaze.length > 0
+      ? sortedGaze
+      : [{ direction: 'center', percentage: '100.0' }];
+
+    setRecordingAnalysis({
+      emotions: finalEmotions as any,
+      gaze: finalGaze as any,
+      duration: duration
+    });
+  };
+
+  // --- Camera & Recording Logic ---
   const startCamera = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-          sampleRate: 44100,
-          channelCount: 2,
-          sampleSize: 16,
-        },
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: 44100 }
       });
-
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        // Wait for video to be ready
-        await new Promise((resolve) => {
-          if (!videoRef.current) return;
-          videoRef.current.onloadedmetadata = () => {
-            if (videoRef.current) {
-              videoRef.current.play();
-              resolve(true);
-            }
-          };
-        });
-
-        // Initialize canvas size
-        if (canvasRef.current && videoRef.current) {
-          const videoRect = videoRef.current.getBoundingClientRect();
-          canvasRef.current.width = videoRect.width;
-          canvasRef.current.height = videoRect.height;
-        }
+        videoRef.current.play();
       }
-
       streamRef.current = stream;
       setIsStreaming(true);
 
-      // Start detection loop with combined detection - increase frequency during recording
-      intervalRef.current = setInterval(detectCombined, 50); // Increased frequency from 100ms to 50ms
+      // Start background detection loop
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(detectCombined, 100);
+
     } catch (error) {
-      console.error("Error accessing camera:", error);
-      alert(
-        "Failed to access camera or microphone. Please make sure you have granted necessary permissions."
-      );
+      console.error("Camera error:", error);
+      alert("Could not start camera. Please allow permissions.");
     }
   };
 
   const stopCamera = () => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
+      streamRef.current.getTracks().forEach(t => t.stop());
+      if (videoRef.current) videoRef.current.srcObject = null;
       streamRef.current = null;
-      setIsStreaming(false);
     }
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setIsStreaming(false);
   };
 
-  const testApiConnection = async () => {
-    try {
-      const response = await fetch("http://localhost:5328/api/test", {
-        headers: {
-          Accept: "application/json",
-        },
-      });
-      const data = await response.json();
-      console.log("API test response:", data);
-      return true;
-    } catch (error) {
-      console.error("API connection test failed:", error);
-      setBackendError(
-        "Cannot connect to Python server. Make sure it's running on port 5328."
-      );
-      return false;
-    }
-  };
-
-  const startRecording = async () => {
+  const startRecording = () => {
     if (!streamRef.current) return;
 
-    try {
-      setRecordingError(null);
-      setRecordingDuration(0);
-      // Clear the refs instead of state
-      emotionsDataRef.current = [];
-      gazeDataRef.current = [];
-      setAnalysisReady(false);
+    emotionsDataRef.current = [];
+    gazeDataRef.current = [];
+    chunksRef.current = [];
 
-      // Clear the canvas when starting recording
-      if (canvasRef.current) {
-        const ctx = canvasRef.current.getContext("2d");
-        if (ctx) {
-          ctx.clearRect(
-            0,
-            0,
-            canvasRef.current.width,
-            canvasRef.current.height
-          );
-        }
-      }
+    // Increase frequency during recording
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(detectCombined, 50);
 
-      // Ensure detection interval is running at higher frequency during recording
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-      intervalRef.current = setInterval(detectCombined, 50); // 50ms interval during recording
+    const mediaRecorder = new MediaRecorder(streamRef.current);
+    mediaRecorderRef.current = mediaRecorder;
 
-      // Check supported MIME types for MP4
-      const mimeTypes = [
-        "video/mp4;codecs=avc1.42E01E,mp4a.40.2", // H.264 + AAC
-        "video/mp4",
-      ];
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) chunksRef.current.push(e.data);
+    };
 
-      let selectedMimeType = "";
-      for (const mimeType of mimeTypes) {
-        if (MediaRecorder.isTypeSupported(mimeType)) {
-          console.log("Using MIME type:", mimeType);
-          selectedMimeType = mimeType;
-          break;
-        }
-      }
-
-      if (!selectedMimeType) {
-        throw new Error("No supported MP4 video format found");
-      }
-
-      // High quality settings for MP4
-      const options = {
-        mimeType: selectedMimeType,
-        videoBitsPerSecond: 8000000,
-        audioBitsPerSecond: 320000,
-        videoKeyFrameInterval: 1000,
-        videoQuality: 1.0,
-        audioSampleRate: 44100,
-        audioChannelCount: 2,
-      };
-
-      const mediaRecorder = new MediaRecorder(streamRef.current, options);
-
-      mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        // Clear recording timer
-        if (recordingTimerRef.current) {
-          clearInterval(recordingTimerRef.current);
-          recordingTimerRef.current = null;
-        }
-
-        const videoBlob = new Blob(chunksRef.current, { type: "video/mp4" });
-
-        const formData = new FormData();
-        formData.append("video", videoBlob, "recording.mp4");
-
-        try {
-          setIsUploading(true);
-          const response = await fetch(
-            "http://localhost:5328/api/upload-video",
-            {
-              method: "POST",
-              body: formData,
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error(`Upload failed: ${response.statusText}`);
-          }
-
-          const result = await response.json();
-          console.log("Video uploaded successfully:", result.filename);
-          setUploadedVideo(result.filename);
-          if (result.has_audio) {
-            setUploadedAudio(result.audio_filename);
-          }
-
-          // Process recording data
-          console.log("Processing recording data...");
-          console.log("Emotions data:", emotionsDataRef.current);
-          console.log("Gaze data:", gazeDataRef.current);
-
-          // Don't return early if no emotions data, just log a warning
-          if (emotionsDataRef.current.length === 0) {
-            console.warn(
-              "No emotions data recorded, but continuing with available data"
-            );
-          }
-
-          // Always update state with whatever data we have
-          setRecordingEmotions(emotionsDataRef.current);
-          setRecordingGaze(gazeDataRef.current);
-
-          const analysisData = {
-            emotions: emotionsDataRef.current,
-            gaze: gazeDataRef.current,
-            duration: recordingDuration,
-            category: selectedMode,
-          };
-
-          // Always save whatever data we have
-          console.log("Saving analysis data:", analysisData);
-          const storageKey = `recording_analysis_${result.filename}`;
-          console.log("Storage key:", storageKey);
-          localStorage.setItem(storageKey, JSON.stringify(analysisData));
-          console.log("Data saved to localStorage");
-
-          // Also save a dedicated metadata object for this recording
-          const metadataKey = `recording_metadata_${result.filename}`;
-          const metadata = {
-            category: selectedMode,
-            timestamp: new Date().toISOString(),
-            duration: recordingDuration,
-          };
-          localStorage.setItem(metadataKey, JSON.stringify(metadata));
-          console.log("Metadata saved to localStorage");
-
-          setAnalysisReady(true);
-
-          // Always navigate to the recordings page
-          const recordingUrl = `/recordings/${result.filename}${result.has_audio ? `?audio=${result.audio_filename}` : ""
-            }`;
-          console.log("Navigating to:", recordingUrl);
-          router.push(recordingUrl);
-        } catch (error) {
-          console.error("Error uploading video:", error);
-          setRecordingError(
-            error instanceof Error ? error.message : "Failed to upload video"
-          );
-        } finally {
-          setIsUploading(false);
-        }
-      };
-
-      mediaRecorder.start(100);
-      setIsRecording(true);
-
-      // Start recording timer
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingDuration((prev) => prev + 1);
-      }, 1000);
-    } catch (error) {
-      console.error("Error starting recording:", error);
-      setRecordingError(
-        "Failed to start recording. Please check your camera and microphone permissions."
-      );
-    }
+    mediaRecorder.onstop = handleRecordingStop;
+    mediaRecorder.start(100);
+    setIsRecording(true);
+    setRecordingDuration(0);
+    recordingTimerRef.current = setInterval(() => setRecordingDuration(p => p + 1), 1000);
   };
 
   const stopRecording = () => {
     if (mediaRecorderRef.current && isRecording) {
-      // First, stop the media recorder
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
 
-      // Reset detection interval to normal frequency
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-        intervalRef.current = setInterval(detectCombined, 100);
-      }
+      // Reset frequency
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(detectCombined, 100);
     }
   };
 
-  // Format recording duration
-  const formatDuration = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs
-      .toString()
-      .padStart(2, "0")}`;
+  const handleRecordingStop = async () => {
+    const videoBlob = new Blob(chunksRef.current, { type: 'video/mp4' });
+    const formData = new FormData();
+    formData.append("video", videoBlob, "practice_recording.mp4");
+
+    setIsUploading(true);
+    try {
+      const response = await fetch("http://localhost:5328/api/upload-video", {
+        method: "POST",
+        body: formData
+      });
+      const result = await response.json();
+
+      setUploadedVideo(result.filename);
+      if (result.has_audio) {
+        setUploadedAudio(result.audio_filename);
+
+        // Process collected LOCAL data for emotions (fixing the "not reflecting" issue)
+        processLocalAnalysisData(recordingDuration);
+
+        setView('results');
+        processAnalysis(result.audio_filename);
+      } else {
+        alert("No audio detected in recording.");
+      }
+    } catch (error) {
+      console.error("Upload failed:", error);
+      alert("Failed to upload recording.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
-  // Add cleanup for recording timer in useEffect
-  useEffect(() => {
-    testApiConnection();
+  const processAnalysis = async (audioVarsFilename: string) => {
+    setIsTranscribing(true);
+    try {
+      // Transcription
+      const audioRes = await fetch(`http://localhost:5328/uploads/${audioVarsFilename}`);
+      const audioBlob = await audioRes.blob();
+      const formData = new FormData();
+      formData.append("file", audioBlob, audioVarsFilename);
+      if (selectedMode) formData.append("category", selectedMode.id);
 
-    return () => {
-      // Clean up camera resources
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-      }
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
+      const txResponse = await fetch("http://localhost:5328/api/speech2text", {
+        method: "POST", body: formData
+      });
+      const txResult = await txResponse.json();
+
+      setTranscription(txResult.text || "No speech detected.");
+      setAnalysis(txResult.analysis);
+
+      // We do NOT overwrite recordingAnalysis here anymore, 
+      // because processLocalAnalysisData already set the definitive emotions/gaze.
+      // logic.
+
+      // Enhancement
+      setIsEnhancing(true);
+      const enResponse = await fetch("http://localhost:5328/api/enhance-audio", {
+        method: "POST", body: formData
+      });
+
+      if (!enResponse.ok) {
+        throw new Error("Enhancement failed");
       }
 
-      // Clean up speech recognition
-      if (recognition) {
-        recognition.stop();
-      }
-    };
-  }, []);
+      const enBlob = await enResponse.blob();
+      const outputAudioBlob = new Blob([enBlob], { type: 'audio/wav' }); // Fix playability
+      setEnhancedAudio(URL.createObjectURL(outputAudioBlob));
 
-  return (
-    <>
-      {/* Solid color background (FloatingPointsCanvas removed for faster performance) */}
-      <div className="fixed inset-0 -z-10 bg-black" />
+    } catch (e) {
+      console.error("Analysis failed:", e);
+    } finally {
+      setIsTranscribing(false);
+      setIsEnhancing(false);
+    }
+  };
 
-      <motion.main
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="relative z-10 container max-w-4xl mx-auto p-4 pt-32 pb-8"
-      >
-        <AnimatePresence mode="wait">
-          <div className="space-y-8">
-            {/* Mode Selection */}
-            {!selectedMode && (
-              <motion.div
-                key="mode-selection"
-                {...fadeIn}
-                transition={{ duration: 0.5 }}
+  const handleTryAgain = () => {
+    resetState();
+    setView('practice');
+    startCamera();
+  };
+
+  const nextPrompt = () => {
+    if (selectedMode) {
+      setCurrentPromptIndex((prev) => (prev + 1) % selectedMode.prompts.length);
+    }
+  };
+
+  // --- Render ---
+
+  // 1. Selection Screen
+  if (view === 'selection') {
+    return (
+      <>
+        <div className="container min-h-screen pt-24 pb-12 flex flex-col items-center">
+          <h1 className="text-4xl font-bold mb-2 text-white">Choose Your Practice Mode</h1>
+          <p className="text-muted-foreground mb-8">Select a category to practice specific speaking skills.</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-6xl">
+            {PRACTICE_MODES.map((mode) => (
+              <Card
+                key={mode.id}
+                className="hover:border-primary/50 transition-all cursor-pointer bg-card/50 backdrop-blur"
+                onClick={() => handleModeSelect(mode)}
               >
-                <Card className="border-2">
-                  <CardHeader>
-                    <motion.div
-                      initial={{ opacity: 0, y: -20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
-                    >
-                      <CardTitle className="text-center text-2xl">
-                        Choose Your Practice Mode
-                      </CardTitle>
-                      <CardDescription className="text-center">
-                        Select what type of conversation you'd like to practice
-                      </CardDescription>
-                    </motion.div>
-                  </CardHeader>
-                  <CardContent>
-                    <motion.div
-                      variants={staggerContainer}
-                      initial="initial"
-                      animate="animate"
-                      className="grid grid-cols-1 md:grid-cols-2 gap-6"
-                    >
-                      {conversationModes.map(
-                        (mode: ConversationMode, index: number) => (
-                          <motion.button
-                            key={mode.id}
-                            variants={modeCardVariants}
-                            initial="initial"
-                            animate="animate"
-                            whileHover="hover"
-                            whileTap="tap"
-                            custom={index}
-                            onClick={() => handleModeSelect(mode.id)}
-                            className={`w-full group relative h-auto p-6 text-left flex flex-col items-center gap-4 rounded-md border-2 bg-background transition-colors
-                          ${selectedMode === mode.id
-                                ? "border-primary"
-                                : "border-input"
-                              }
-                        `}
-                          >
-                            <motion.div
-                              className="text-4xl mb-2"
-                              whileHover={{ rotate: [0, -10, 10, 0] }}
-                              transition={{ duration: 0.5 }}
-                            >
-                              {mode.emoji}
-                            </motion.div>
-                            <div className="text-center">
-                              <div className="font-semibold text-lg mb-2">
-                                {mode.name}
-                              </div>
-                              <div className="text-sm text-muted-foreground">
-                                {mode.description}
-                              </div>
-                            </div>
-                          </motion.button>
-                        )
-                      )}
-                    </motion.div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
+                <CardHeader>
+                  <div className="text-4xl mb-4">{mode.emoji}</div>
+                  <CardTitle>{mode.name}</CardTitle>
+                  <CardDescription>{mode.description}</CardDescription>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </>
+    );
+  }
 
-            {/* Tips and Start Page */}
-            {selectedMode && !showPractice && selectedModeData && (
-              <motion.div
-                key="tips-page"
-                {...fadeIn}
-                transition={{ duration: 0.5 }}
-              >
-                <Card className="border-2">
-                  <CardHeader className="text-center">
-                    <motion.div
-                      className="text-4xl mb-4"
-                      animate={{ scale: [1, 1.2, 1] }}
-                      transition={{ duration: 1 }}
-                    >
-                      {selectedModeData.emoji}
-                    </motion.div>
-                    <CardTitle className="text-2xl">
-                      {selectedModeData.name} Practice
-                    </CardTitle>
-                    <CardDescription>
-                      Review these tips before you begin
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <motion.div className="space-y-6">
-                      <motion.div
-                        variants={staggerContainer}
-                        initial="initial"
-                        animate="animate"
-                        className="space-y-4 bg-muted/30 p-6 rounded-lg"
-                      >
-                        {selectedModeData.tips.map((tip, index) => (
-                          <motion.div
-                            key={index}
-                            variants={fadeIn}
-                            custom={index}
-                            className="flex items-start gap-3 hover:bg-muted/50 p-2 rounded transition-colors"
-                          >
-                            <span className="text-primary text-xl">•</span>
-                            <p className="text-base">{tip}</p>
-                          </motion.div>
-                        ))}
-                      </motion.div>
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="w-full bg-primary text-primary-foreground hover:bg-primary/90 text-lg py-6 px-4 rounded-md font-medium"
-                        onClick={handleStartPractice}
-                      >
-                        Start Practice
-                      </motion.button>
-                    </motion.div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            )}
+  // 2. Practice Screen (Prompt + Camera)
+  if (view === 'practice' && selectedMode) {
+    return (
+      <>
+        <div className="container min-h-screen pt-24 pb-12 flex flex-col items-center">
+          <div className="w-full max-w-5xl flex justify-between items-center mb-6">
+            <Button variant="ghost" onClick={handleBack} disabled={isRecording}>
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back
+            </Button>
+            <Badge variant="outline" className="text-lg px-4 py-1">
+              {selectedMode.emoji} {selectedMode.name}
+            </Badge>
+            <div className="w-20" /> {/* Spacer */}
+          </div>
 
-            {/* Practice Session */}
-            {showPractice && (
-              <motion.div
-                key="practice-session"
-                {...fadeIn}
-                transition={{ duration: 0.5 }}
-                className="space-y-6"
-              >
-                <Card className="border-2">
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2">
-                        <motion.span
-                          animate={{ scale: isRecording ? [1, 1.2, 1] : 1 }}
-                          transition={{
-                            duration: 1,
-                            repeat: isRecording ? Infinity : 0,
-                          }}
-                          className="text-primary"
-                        >
-                          ●
-                        </motion.span>
-                        {isRecording ? "Recording..." : "Ready"}
-                      </CardTitle>
-                      <div className="flex items-center gap-2">
-                        <motion.span
-                          className="text-2xl"
-                          animate={{ rotate: [0, 10, -10, 0] }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                        >
-                          {selectedModeData?.emoji}
-                        </motion.span>
-                        <span className="text-sm text-muted-foreground">
-                          Question {currentQuestion} of {totalQuestions}
-                        </span>
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-6">
-                      {/* Camera Feed */}
-                      <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
-                        <video
-                          ref={videoRef}
-                          autoPlay
-                          playsInline
-                          muted={isRecording}
-                          className="absolute top-0 left-0 w-full h-full object-contain"
-                        />
-                        <canvas
-                          ref={canvasRef}
-                          className="absolute top-0 left-0 w-full h-full"
-                          style={{
-                            pointerEvents: "none",
-                            zIndex: 10,
-                            display: isRecording ? "none" : "block",
-                          }}
-                        />
-                        {isRecording && (
-                          <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full flex items-center gap-2">
-                            <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                            <span>{formatDuration(recordingDuration)}</span>
-                          </div>
-                        )}
-                      </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-6xl flex-1 min-h-0">
+            {/* Left: Prompt Card */}
+            <Card className="flex flex-col bg-card/80 backdrop-blur border-primary/20">
+              <CardHeader>
+                <CardTitle>Read Aloud</CardTitle>
+                <CardDescription>Focus on your tone and pacing.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1 flex items-center justify-center p-8">
+                <p className="text-2xl leading-relaxed font-serif text-center">
+                  "{selectedMode.prompts[currentPromptIndex]}"
+                </p>
+              </CardContent>
+              <CardFooter className="justify-center gap-4">
+                <Button variant="ghost" size="sm" onClick={nextPrompt} disabled={isRecording}>
+                  Different Prompt
+                </Button>
+              </CardFooter>
+            </Card>
 
-                      {/* Camera and Recording Controls */}
-                      <div className="flex justify-center gap-4">
-                        {!isRecording && (
-                          <Button
-                            onClick={isStreaming ? stopCamera : startCamera}
-                            variant={isStreaming ? "destructive" : "default"}
-                            className="w-32"
-                          >
-                            {isStreaming ? "Stop Camera" : "Start Camera"}
-                          </Button>
-                        )}
+            {/* Right: Camera & Controls */}
+            <div className="flex flex-col gap-4 justify-center">
+              <div className="relative aspect-video bg-black rounded-xl overflow-hidden border border-white/20 shadow-2xl">
+                <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
 
-                        {isStreaming && (
-                          <Button
-                            onClick={isRecording ? stopRecording : startRecording}
-                            variant={isRecording ? "destructive" : "default"}
-                            className="w-32"
-                            disabled={!isStreaming || isUploading}
-                          >
-                            {isRecording ? "Stop Recording" : "Start Recording"}
-                          </Button>
-                        )}
-                      </div>
+                {/* Hidden canvas for offscreen analysis */}
+                <canvas ref={canvasRef} className="hidden" />
 
-                      {/* Mode-specific tips */}
-                      {selectedModeData && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.3 }}
-                          className="space-y-2 bg-muted/30 p-4 rounded-lg"
-                        >
-                          <h3 className="font-semibold mb-2">Practice Tips:</h3>
-                          {selectedModeData.tips.map((tip, index) => (
-                            <motion.p
-                              key={index}
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: 0.1 * index }}
-                              className="flex items-center gap-2 text-sm text-muted-foreground"
-                            >
-                              <span className="text-primary">•</span> {tip}
-                            </motion.p>
-                          ))}
-                        </motion.div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Upload Overlay */}
-                {isUploading && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-                  >
-                    <div className="bg-background p-8 rounded-lg shadow-lg flex flex-col items-center gap-4">
-                      <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                      <p className="text-lg font-semibold">
-                        Processing your recording...
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        Please wait while we prepare your video
-                      </p>
-                    </div>
-                  </motion.div>
+                {isRecording && (
+                  <div className="absolute top-4 right-4 bg-red-600 text-white px-3 py-1 rounded-full animate-pulse font-bold">
+                    Recording {formatDuration(recordingDuration)}
+                  </div>
                 )}
+              </div>
 
-                {/* Error Messages */}
-                {(recordingError || backendError) && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="w-full p-4 bg-destructive/10 text-destructive rounded-lg text-center"
-                  >
-                    {recordingError || backendError}
-                  </motion.div>
+              <div className="flex justify-center gap-4 py-4">
+                {!isRecording ? (
+                  <Button onClick={startRecording} size="lg" className="w-full max-w-xs bg-red-600 hover:bg-red-700 text-lg h-14 rounded-full">
+                    <Mic className="mr-2 h-6 w-6" /> Start Practice
+                  </Button>
+                ) : (
+                  <Button onClick={stopRecording} size="lg" variant="destructive" className="w-full max-w-xs text-lg h-14 rounded-full animate-pulse">
+                    <Square className="mr-2 h-6 w-6" /> Stop & Analyze
+                  </Button>
                 )}
-              </motion.div>
-            )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
 
-            {speechRate && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-sm text-muted-foreground mt-2"
-              >
-                Speaking rate: {speechRate} words per minute
-              </motion.div>
+  // 3. Results Screen
+  if (view === 'results') {
+    return (
+      <>
+        <div className="container min-h-screen pt-24 pb-12 flex flex-col items-center">
+          <Button variant="ghost" className="self-start mb-4" onClick={handleBack}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to Modes
+          </Button>
+
+          <h1 className="text-3xl font-bold mb-8">Performance Analysis</h1>
+
+          <div className="flex flex-col gap-6 w-full max-w-4xl">
+            {isTranscribing ? (
+              <Card className="p-12 flex flex-col items-center gap-4">
+                <div className="text-4xl animate-spin">⏳</div>
+                <h2 className="text-xl font-semibold">Analyzing your speech...</h2>
+                <p className="text-muted-foreground">Checking emotions, pacing, and clarity.</p>
+              </Card>
+            ) : (
+              transcription && (analysis || recordingAnalysis) ? (
+                <Card className="bg-black/40 border border-white/10 backdrop-blur-md">
+                  <CardContent className="pt-6">
+                    {enhancedAudio && (
+                      <div className="mb-6 flex flex-col items-center gap-2">
+                        <h3 className="text-sm font-medium text-gray-400">Enhanced Audio</h3>
+                        <audio controls src={enhancedAudio} className="w-full max-w-md" />
+                      </div>
+                    )}
+
+                    <DetailedAnalysis
+                      analysis={analysis}
+                      recordingAnalysis={recordingAnalysis}
+                      transcription={transcription}
+                    />
+
+                    <div className="flex justify-center mt-8">
+                      <Button onClick={handleTryAgain} variant="outline" size="lg">
+                        <RotateCcw className="mr-2 h-4 w-4" /> Practice Again
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="text-center text-red-400">Result loading failed.</div>
+              )
             )}
           </div>
-        </AnimatePresence>
-      </motion.main>
-    </>
-  );
+        </div>
+      </>
+    );
+  }
+
+  return null;
 }

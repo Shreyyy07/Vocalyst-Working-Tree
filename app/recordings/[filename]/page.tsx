@@ -464,6 +464,15 @@ export default function RecordingPage() {
       const result = await response.json();
       console.log("Transcription result:", result);
 
+      // Handle explicit no speech detected case (backend returns special JSON)
+      if (result.no_speech_detected) {
+        console.warn("No speech detected by backend");
+        setTranscription("No speech detected in this recording.");
+        setAnalysis(result.analysis || null); // Use empty/default analysis if available
+        // Don't throw error, treating it as a valid state
+        return;
+      }
+
       if (!result.text) {
         throw new Error("No transcription received from server");
       }

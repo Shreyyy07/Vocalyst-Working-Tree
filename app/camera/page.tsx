@@ -3,8 +3,9 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useRouter } from "next/navigation";
-import FloatingPointsCanvas from "@/components/ui/FloatingPoints";
+
+import DetailedAnalysis from "@/components/DetailedAnalysis";
+import SpeechFeedback, { Analysis, RecordingAnalysis, EmotionAnalysis } from "@/components/SpeechFeedback";
 
 type Emotions = {
   neutral: number;
@@ -17,6 +18,7 @@ type Emotions = {
 };
 
 export default function CameraPage() {
+  // --- State: Camera & Recording ---
   const [isStreaming, setIsStreaming] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [backendError, setBackendError] = useState<string | null>(null);
@@ -25,462 +27,257 @@ export default function CameraPage() {
   const [recordingError, setRecordingError] = useState<string | null>(null);
   const [uploadedVideo, setUploadedVideo] = useState<string | null>(null);
   const [uploadedAudio, setUploadedAudio] = useState<string | null>(null);
-  const [separateAudioRecording, setSeparateAudioRecording] = useState(false);
-  const [gazeDirection, setGazeDirection] = useState<string>("center");
+  const [recordingDuration, setRecordingDuration] = useState<number>(0);
+
+  // Real-time data containers
   const [emotions, setEmotions] = useState<Emotions>({
-    neutral: 0,
-    happy: 0,
-    sad: 0,
-    angry: 0,
-    fearful: 0,
-    disgusted: 0,
-    surprised: 0,
+    neutral: 0, happy: 0, sad: 0, angry: 0, fearful: 0, disgusted: 0, surprised: 0,
   });
+  const [gazeDirection, setGazeDirection] = useState<string>("center");
+
+  // Data refs for recording accumulation
+  const emotionsDataRef = useRef<Array<{ timestamp: number; emotions: Emotions }>>([]);
+  const gazeDataRef = useRef<Array<{ timestamp: number; direction: string }>>([]);
+
+  // Hardware refs
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const audioRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const router = useRouter();
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
-  const lowPassNodeRef = useRef<BiquadFilterNode | null>(null);
-  const highPassNodeRef = useRef<BiquadFilterNode | null>(null);
-  const [recordingDuration, setRecordingDuration] = useState<number>(0);
   const recordingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Emotion tracking during recording
-  // Emotion capture removed - now handled by backend
-
-  const detectCombined = async () => {
-    // Check if videoRef.current and canvasRef.current exist
-    if (!videoRef.current || !canvasRef.current || isProcessing || isRecording) return;
-
-    // Wait until the video metadata is loaded
-    if (!videoRef.current.videoWidth || !videoRef.current.videoHeight) {
-      console.error("Video element is not ready yet");
-      return;
-    }
-
-    try {
-      setIsProcessing(true);
-      setBackendError(null);
-      // Connection check moved to startCamera to avoid 100ms loop overhead
+  // --- State: Analysis & Results ---
+  const [showResults, setShowResults] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcription, setTranscription] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const [recordingAnalysis, setRecordingAnalysis] = useState<RecordingAnalysis | null>(null);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [enhancedAudio, setEnhancedAudio] = useState<string | null>(null);
 
 
-      // Capture the current frame from video
-      const canvas = document.createElement("canvas");
-      const videoElement = videoRef.current;
-      if (!videoElement) return;  // Ensure the video element exists
-
-      canvas.width = videoElement.videoWidth;
-      canvas.height = videoElement.videoHeight;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      ctx.drawImage(videoElement, 0, 0);
-      const imageData = canvas.toDataURL("image/jpeg", 0.8);
-
-      // Send to combined backend API
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5328"}/api/detect-combined`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({ image: imageData }),
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to process frame");
-      }
-
-      const result = await response.json();
-
-      if (result.success && result.face_detected) {
-        // Update emotions
-        setEmotions(result.emotions);
-
-        // Update gaze
-        if (result.gaze) {
-          setGazeDirection(result.gaze.direction);
-
-          // Update canvas with gaze visualization
-          const canvasElement = canvasRef.current;
-          if (!canvasElement) return;  // Ensure canvas exists
-
-          const displayRect = videoElement.getBoundingClientRect();
-          const displayWidth = displayRect.width;
-          const displayHeight = displayRect.height;
-
-          // Update canvas size if needed
-          if (canvasElement.width !== displayWidth || canvasElement.height !== displayHeight) {
-            canvasElement.width = displayWidth;
-            canvasElement.height = displayHeight;
-          }
-
-          // If recording, clear the canvas and return
-          if (isRecording) {
-            const overlayCtx = canvasElement.getContext("2d");
-            if (overlayCtx) {
-              overlayCtx.clearRect(0, 0, displayWidth, displayHeight);
-            }
-            return;
-          }
-
-          // Calculate scaling factors
-          const scaleX = displayWidth / videoElement.videoWidth;
-          const scaleY = displayHeight / videoElement.videoHeight;
-          const scale = Math.min(scaleX, scaleY);
-
-          // Calculate centering offsets
-          const offsetX = (displayWidth - videoElement.videoWidth * scale) / 2;
-          const offsetY = (displayHeight - videoElement.videoHeight * scale) / 2;
-
-          // Get overlay context
-          const overlayCtx = canvasElement.getContext("2d", {
-            willReadFrequently: true,
-          });
-          if (!overlayCtx) return;
-
-          // Clear previous drawings
-          overlayCtx.clearRect(0, 0, displayWidth, displayHeight);
-
-          // Set up transform for proper scaling and centering
-          overlayCtx.save();
-          overlayCtx.translate(offsetX, offsetY);
-          overlayCtx.scale(scale, scale);
-
-          // Draw minimal face outline
-          if (result.gaze.landmarks) {
-            overlayCtx.strokeStyle = "rgba(255, 255, 255, 0.3)"; // Very subtle white outline
-            overlayCtx.lineWidth = 1;
-
-            // Draw face outline using selected landmarks
-            const faceOutlinePoints = result.gaze.landmarks.filter(
-              (_: [number, number], index: number) =>
-                // Only use points that form the face outline
-                [
-                  10, 338, 297, 332, 284, 251, 389, 356, 454, 323, 361, 288,
-                  397, 365, 379, 378, 400, 377, 152, 148, 176, 149, 150, 136,
-                  172, 58, 132, 93, 234, 127, 162, 21, 54, 103, 67, 109,
-                ].includes(index)
-            );
-
-            if (faceOutlinePoints.length > 0) {
-              overlayCtx.beginPath();
-              overlayCtx.moveTo(
-                faceOutlinePoints[0][0] * videoElement.videoWidth,
-                faceOutlinePoints[0][1] * videoElement.videoHeight
-              );
-
-              faceOutlinePoints.forEach((point: [number, number]) => {
-                overlayCtx.lineTo(
-                  point[0] * videoElement.videoWidth,
-                  point[1] * videoElement.videoHeight
-                );
-              });
-
-              overlayCtx.closePath();
-              overlayCtx.stroke();
-            }
-          }
-
-          // Draw minimal gaze indicator
-          if (result.gaze.gaze_arrow) {
-            const { start, end } = result.gaze.gaze_arrow;
-            overlayCtx.strokeStyle = "rgba(255, 255, 255, 0.4)"; // Subtle white
-            overlayCtx.lineWidth = 2;
-
-            // Draw a simple dot at the eye center
-            overlayCtx.beginPath();
-            overlayCtx.arc(
-              start.x * videoElement.videoWidth,
-              start.y * videoElement.videoHeight,
-              3,
-              0,
-              2 * Math.PI
-            );
-            overlayCtx.fill();
-
-            // Draw a small line indicating direction
-            overlayCtx.beginPath();
-            overlayCtx.moveTo(
-              start.x * videoElement.videoWidth,
-              start.y * videoElement.videoHeight
-            );
-            overlayCtx.lineTo(
-              end.x * videoElement.videoWidth,
-              end.y * videoElement.videoHeight
-            );
-            overlayCtx.stroke();
-          }
-
-          // Draw minimal gaze direction text
-          overlayCtx.font = "16px system-ui"; // Smaller, system font
-          overlayCtx.textBaseline = "top";
-          const text = result.gaze.direction.toUpperCase();
-
-          overlayCtx.fillStyle = "rgba(255, 255, 255, 0.5)";
-          overlayCtx.fillText(text, 10, 10);
-
-          // Restore the original transform
-          overlayCtx.restore();
-        }
-      }
-    } catch (error) {
-      console.error("Error in combined detection:", error);
-      setBackendError(
-        error instanceof Error
-          ? error.message
-          : "Failed to process frame. Please try again."
-      );
-    } finally {
-      setIsProcessing(false);
-    }
+  // --- Helper Functions ---
+  const formatDuration = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-
-  const startCamera = async () => {
-    try {
-      // Check API connection once before starting
-      const isConnected = await testApiConnection();
-      if (!isConnected) {
-        throw new Error("Cannot connect to backend API");
-      }
-
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: {
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-          sampleRate: 44100,
-          channelCount: 2,
-          sampleSize: 16,
-        },
-      });
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        // Wait for video to be ready
-        await new Promise((resolve) => {
-          if (!videoRef.current) return;
-          videoRef.current.onloadedmetadata = () => {
-            if (videoRef.current) {
-              videoRef.current.play();
-              resolve(true);
-            }
-          };
-        });
-
-        // Initialise canvas size
-        if (canvasRef.current && videoRef.current) {
-          const videoRect = videoRef.current.getBoundingClientRect();
-          canvasRef.current.width = videoRect.width;
-          canvasRef.current.height = videoRect.height;
-        }
-      }
-
-      streamRef.current = stream;
-      setIsStreaming(true);
-
-      // Start detection loop with combined detection
-      intervalRef.current = setInterval(detectCombined, 100);
-    } catch (error) {
-      console.error("Error accessing camera:", error);
-      alert(
-        "Failed to access camera or microphone. Please make sure you have granted necessary permissions."
-      );
-    }
-  };
-
-  const stopCamera = () => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
-      if (videoRef.current) {
-        videoRef.current.srcObject = null;
-      }
-      streamRef.current = null;
-      setIsStreaming(false);
-    }
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-  };
-
-  // Update the testApiConnection function
-  const testApiConnection = async () => {
-    try {
-      // Use the absolute URL with the correct port
-      const response = await fetch("http://localhost:5328/api/test", {
-        // Add these headers to help with CORS
-        headers: {
-          Accept: "application/json",
-        },
-      });
-      const data = await response.json();
-      // Removed console.log to prevent spam
-      return true;
-    } catch (error) {
-      console.error("API connection test failed:", error);
-      setBackendError(
-        "Cannot connect to Python server. Make sure it's running on port 5328."
-      );
-      return false;
-    }
-  };
-
-  // Add this function to get the dominant emotion
   const getDominantEmotion = (emotions: Record<string, number>): string => {
     if (Object.keys(emotions).length === 0) return "none";
-
     let maxEmotion = "";
     let maxValue = 0;
-
     Object.entries(emotions).forEach(([emotion, value]) => {
       if (value > maxValue) {
         maxValue = value;
         maxEmotion = emotion;
       }
     });
-
     return maxEmotion;
   };
 
-  // Emotion capture removed - backend now extracts frames and analyzes emotions
+  // --- Core Camera Logic ---
+  const testApiConnection = async () => {
+    try {
+      const response = await fetch("http://localhost:5328/api/test", { headers: { Accept: "application/json" } });
+      const data = await response.json();
+      return true;
+    } catch (error) {
+      console.error("API connection test failed:", error);
+      setBackendError("Cannot connect to Python server. Make sure it's running on port 5328.");
+      return false;
+    }
+  };
 
-  const startRecording = async () => {
-    if (!streamRef.current) return;
+  const detectCombined = async () => {
+    if (!videoRef.current || !canvasRef.current || isProcessing) return;
 
     try {
-      setRecordingError(null);
-      setRecordingDuration(0);
+      setIsProcessing(true);
+      setBackendError(null);
 
-      // Clear the canvas when starting recording
-      if (canvasRef.current) {
-        const ctx = canvasRef.current.getContext("2d");
-        if (ctx) {
-          ctx.clearRect(
-            0,
-            0,
-            canvasRef.current.width,
-            canvasRef.current.height
-          );
+      const canvas = document.createElement("canvas");
+      canvas.width = videoRef.current.videoWidth;
+      canvas.height = videoRef.current.videoHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+
+      ctx.drawImage(videoRef.current, 0, 0);
+      const imageData = canvas.toDataURL("image/jpeg", 0.8);
+
+      const response = await fetch("http://localhost:5328/api/detect-combined", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: imageData }),
+      });
+
+      if (!response.ok) throw new Error("Failed to process frame");
+
+      // Check refs again after async
+      if (!videoRef.current || !canvasRef.current) return;
+
+      const result = await response.json();
+
+      if (result.success && result.face_detected) {
+        setEmotions(result.emotions);
+
+        if (isRecording) {
+          const timestamp = Date.now();
+          emotionsDataRef.current.push({ timestamp, emotions: result.emotions });
+          if (result.gaze) {
+            gazeDataRef.current.push({ timestamp, direction: result.gaze.direction });
+          }
         }
       }
 
-      // Check supported MIME types for MP4
-      const mimeTypes = [
-        "video/mp4;codecs=avc1.42E01E,mp4a.40.2", // H.264 + AAC
-        "video/mp4",
-      ];
-
-      let selectedMimeType = "";
-      for (const mimeType of mimeTypes) {
-        if (MediaRecorder.isTypeSupported(mimeType)) {
-          console.log("Using MIME type:", mimeType);
-          selectedMimeType = mimeType;
-          break;
-        }
+      if (result.gaze) {
+        setGazeDirection(result.gaze.direction);
+        drawOverlays(result);
       }
 
-      if (!selectedMimeType) {
-        throw new Error("No supported MP4 video format found");
+    } catch (error) {
+      console.error("Detection error:", error);
+      // Suppress error in UI for smoother experience, just log it
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const drawOverlays = (result: any) => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+
+    if (isRecording) {
+      // Clear canvas during recording to keep video clean
+      const ctx = canvas.getContext("2d");
+      ctx?.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+
+    const displayRect = video.getBoundingClientRect();
+    if (canvas.width !== displayRect.width || canvas.height !== displayRect.height) {
+      canvas.width = displayRect.width;
+      canvas.height = displayRect.height;
+    }
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Calculate scaling
+    const scale = Math.min(displayRect.width / video.videoWidth, displayRect.height / video.videoHeight);
+    const offsetX = (displayRect.width - video.videoWidth * scale) / 2;
+    const offsetY = (displayRect.height - video.videoHeight * scale) / 2;
+
+    ctx.save();
+    ctx.translate(offsetX, offsetY);
+    ctx.scale(scale, scale);
+
+    // Draw Gaze Arrow
+    if (result.gaze?.gaze_arrow) {
+      const { start, end } = result.gaze.gaze_arrow;
+      ctx.strokeStyle = "rgba(255, 255, 255, 0.6)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(start.x * video.videoWidth, start.y * video.videoHeight);
+      ctx.lineTo(end.x * video.videoWidth, end.y * video.videoHeight);
+      ctx.stroke();
+    }
+
+    // Draw Gaze Text
+    ctx.font = "20px sans-serif";
+    ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
+    if (result.gaze?.direction) {
+      ctx.fillText(result.gaze.direction.toUpperCase(), 20, 40);
+    }
+
+    ctx.restore();
+  };
+
+  const startCamera = async () => {
+    try {
+      const isConnected = await testApiConnection();
+      if (!isConnected) throw new Error("Backend not reachable");
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, sampleRate: 44100 },
+      });
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await new Promise((resolve) => {
+          if (videoRef.current) {
+            videoRef.current.onloadedmetadata = () => {
+              videoRef.current?.play();
+              resolve(true);
+            };
+          }
+        });
       }
 
-      // High quality settings for MP4
-      const options = {
-        mimeType: selectedMimeType,
-        videoBitsPerSecond: 8000000,
-        audioBitsPerSecond: 320000,
-        videoKeyFrameInterval: 1000,
-        videoQuality: 1.0,
-        audioSampleRate: 44100,
-        audioChannelCount: 2,
-      };
+      streamRef.current = stream;
+      setIsStreaming(true);
+      intervalRef.current = setInterval(detectCombined, 100);
 
-      const mediaRecorder = new MediaRecorder(streamRef.current, options);
+    } catch (error) {
+      console.error("Camera start error:", error);
+      alert("Failed to access camera/mic or backend.");
+    }
+  };
 
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      if (videoRef.current) videoRef.current.srcObject = null;
+      streamRef.current = null;
+    }
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setIsStreaming(false);
+  };
+
+  // --- Recording Logic ---
+  const startRecording = async () => {
+    if (!streamRef.current) return;
+    setRecordingError(null);
+    setRecordingDuration(0);
+    emotionsDataRef.current = [];
+    gazeDataRef.current = [];
+
+    // Switch to results view? No, stay on camera view until finished.
+    setShowResults(false);
+    setTranscription(null);
+    setAnalysis(null);
+    setRecordingAnalysis(null);
+    setEnhancedAudio(null);
+
+    // Increase detection frequency for better data
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(detectCombined, 50);
+
+    try {
+      const options = { mimeType: 'video/mp4' }; // Fallback handled by browser usually, or specific check
+      const mediaRecorder = new MediaRecorder(streamRef.current);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          chunksRef.current.push(event.data);
-        }
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
       };
 
-      mediaRecorder.onstop = async () => {
-        // Clear recording timer
-        if (recordingTimerRef.current) {
-          clearInterval(recordingTimerRef.current);
-          recordingTimerRef.current = null;
-        }
+      mediaRecorder.onstop = handleRecordingStop;
 
-        const videoBlob = new Blob(chunksRef.current, { type: "video/mp4" });
-
-        const formData = new FormData();
-        formData.append("video", videoBlob, "recording.mp4");
-
-        // Emotion data removed - backend extracts from video
-
-        try {
-          setIsUploading(true);
-          const response = await fetch(
-            "http://localhost:5328/api/upload-video",
-            {
-              method: "POST",
-              body: formData,
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error(`Upload failed: ${response.statusText}`);
-          }
-
-          const result = await response.json();
-          console.log("Video uploaded successfully:", result.filename);
-          setUploadedVideo(result.filename);
-          if (result.has_audio) {
-            setUploadedAudio(result.audio_filename);
-          }
-          router.push(
-            `/recordings/${result.filename}${result.has_audio ? `?audio=${result.audio_filename}` : ""
-            }`
-          );
-        } catch (error) {
-          console.error("Error uploading video:", error);
-          setRecordingError(
-            error instanceof Error ? error.message : "Failed to upload video"
-          );
-        } finally {
-          setIsUploading(false);
-        }
-      };
-
-      // Set recording state FIRST before starting intervals
-      setIsRecording(true);
       mediaRecorder.start(100);
+      setIsRecording(true);
+      recordingTimerRef.current = setInterval(() => setRecordingDuration(prev => prev + 1), 1000);
 
-      // Start recording timer
-      recordingTimerRef.current = setInterval(() => {
-        setRecordingDuration((prev) => prev + 1);
-      }, 1000);
-
-      // Emotion capture removed - backend extracts frames
-    } catch (error) {
-      console.error("Error starting recording:", error);
-      setRecordingError(
-        "Failed to start recording. Please check your camera and microphone permissions."
-      );
+    } catch (e) {
+      console.error("Start recording failed:", e);
+      setRecordingError("Failed to start recording.");
     }
   };
 
@@ -488,149 +285,315 @@ export default function CameraPage() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-
-      // Emotion capture interval removed
     }
   };
 
-  // Cleanup and API connection test
-  useEffect(() => {
-    testApiConnection();
+  const handleRecordingStop = async () => {
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
 
-    return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-      // Emotion capture interval removed - no longer needed
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((track) => track.stop());
-      }
-      if (recordingTimerRef.current) {
-        clearInterval(recordingTimerRef.current);
-      }
-    };
-  }, []); // Empty dependency array ensures this runs only once on mount
+    // Prepare blob
+    const videoBlob = new Blob(chunksRef.current, { type: 'video/mp4' });
+    const formData = new FormData();
+    formData.append("video", videoBlob, "recording.mp4");
 
-  // Format recording duration
-  const formatDuration = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs
-      .toString()
-      .padStart(2, "0")}`;
+    setIsUploading(true);
+    try {
+      // Upload
+      const response = await fetch("http://localhost:5328/api/upload-video", {
+        method: "POST",
+        body: formData
+      });
+      if (!response.ok) throw new Error("Upload failed");
+
+      const result = await response.json();
+      setUploadedVideo(result.filename);
+      if (result.has_audio) setUploadedAudio(result.audio_filename);
+
+      // Process local analysis data immediately
+      processLocalAnalysisData(recordingDuration);
+
+      // Switch to results view
+      setShowResults(true);
+
+      // Trigger backend analysis
+      if (result.has_audio) {
+        getTranscription(result.audio_filename);
+        enhanceAudio(result.audio_filename);
+      } else {
+        setTranscription("No audio detected.");
+      }
+
+    } catch (error) {
+      console.error("Upload error:", error);
+      setRecordingError("Failed to process recording.");
+    } finally {
+      setIsUploading(false);
+      // Reset detection interval to normal
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      intervalRef.current = setInterval(detectCombined, 100);
+    }
   };
 
+  const processLocalAnalysisData = (duration: number) => {
+    // Calculate top emotions locally from the ref data gathered during recording
+    const emotionSums: Record<string, number> = {};
+    const emotionCounts: Record<string, number> = {};
+
+    emotionsDataRef.current.forEach(({ emotions }) => {
+      Object.entries(emotions).forEach(([e, v]) => {
+        emotionSums[e] = (emotionSums[e] || 0) + v;
+        emotionCounts[e] = (emotionCounts[e] || 0) + 1;
+      });
+    });
+
+    const averageEmotions = Object.entries(emotionSums)
+      .map(([emotion, sum]) => ({
+        emotion,
+        average: sum / emotionCounts[emotion]
+      }))
+      .sort((a, b) => b.average - a.average)
+      .slice(0, 3)
+      .map(({ emotion, average }) => ({
+        emotion,
+        percentage: (average * 100).toFixed(1)
+      }));
+
+    // Calculate gaze
+    const directionCounts: Record<string, number> = {};
+    gazeDataRef.current.forEach(({ direction }) => {
+      directionCounts[direction] = (directionCounts[direction] || 0) + 1;
+    });
+    const sortedGaze = Object.entries(directionCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 3)
+      .map(([direction, count]) => ({
+        direction,
+        percentage: ((count / gazeDataRef.current.length) * 100).toFixed(1)
+      }));
+
+    setRecordingAnalysis({
+      emotions: averageEmotions,
+      gaze: sortedGaze,
+      duration: duration
+    });
+  };
+
+  // --- Backend Analysis Functions (Ported from recordings page) ---
+  const getTranscription = async (audioVarsFilename: string) => {
+    setIsTranscribing(true);
+    try {
+      // Fetch blob first
+      const audioRes = await fetch(`http://localhost:5328/uploads/${audioVarsFilename}`);
+      const audioBlob = await audioRes.blob();
+
+      const formData = new FormData();
+      formData.append("file", audioBlob, audioVarsFilename);
+
+      const response = await fetch("http://localhost:5328/api/speech2text", {
+        method: "POST",
+        body: formData
+      });
+      const result = await response.json();
+
+      if (result.no_speech_detected) {
+        setTranscription("No speech detected.");
+      } else {
+        setTranscription(result.text || "No transcription available.");
+        setAnalysis(result.analysis);
+      }
+
+    } catch (e) {
+      console.error("Transcription error:", e);
+      setTranscription("Failed to transcribe.");
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
+
+  const enhanceAudio = async (audioVarsFilename: string) => {
+    setIsEnhancing(true);
+    try {
+      const audioRes = await fetch(`http://localhost:5328/uploads/${audioVarsFilename}`);
+      const audioBlob = await audioRes.blob();
+
+      const formData = new FormData();
+      formData.append("file", audioBlob, audioVarsFilename);
+
+      const response = await fetch("http://localhost:5328/api/enhance-audio", {
+        method: "POST",
+        body: formData
+      });
+
+      if (!response.ok) {
+        throw new Error("Enhancement failed");
+      }
+
+      const enhancedBlob = await response.blob();
+      // Ensure the blob is audio
+      const outputAudioBlob = new Blob([enhancedBlob], { type: 'audio/wav' });
+      const enhancedUrl = URL.createObjectURL(outputAudioBlob);
+      setEnhancedAudio(enhancedUrl);
+
+    } catch (e) {
+      console.error("Enhancement error:", e);
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
+
+
+  // --- Helper to reset view ---
+  const handleRecordAgain = () => {
+    setShowResults(false);
+    setRecordingAnalysis(null);
+    setAnalysis(null);
+    setTranscription(null);
+    setEnhancedAudio(null);
+    // Camera is likely still running if they didn't navigate away
+  };
+
+  // --- Render ---
   return (
     <>
-      {/* 3D Floating Points Background */}
       <div className="fixed inset-0 -z-10 bg-black">
-        <FloatingPointsCanvas />
       </div>
 
-      <main className="relative z-10 container py-8 flex flex-col items-center">
-        <h1 className="text-4xl font-bold mb-8 text-center">Camera Practice</h1>
+      <main className="relative z-10 container py-8 flex flex-col items-center min-h-screen">
+        <h1 className="text-4xl font-bold mb-8 text-center text-white">
+          {showResults ? "Practice Analysis" : "Camera Practice"}
+        </h1>
 
-        <Card className="w-full max-w-2xl">
+        <Card className="w-full max-w-4xl bg-card/90 backdrop-blur-sm border-white/10">
           <CardHeader>
-            <CardTitle className="text-center">Camera Feed</CardTitle>
+            <CardTitle className="text-center">
+              {showResults ? "Your Results" : "Live Feed"}
+            </CardTitle>
           </CardHeader>
-          <CardContent className="flex flex-col items-center gap-4">
-            <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                muted={isRecording}
-                className="absolute top-0 left-0 w-full h-full object-contain"
-              />
-              <canvas
-                ref={canvasRef}
-                className="absolute top-0 left-0 w-full h-full"
-                style={{
-                  pointerEvents: "none",
-                  zIndex: 10,
-                  display: isRecording ? "none" : "block",
-                }}
-              />
-              {isRecording && (
-                <div className="absolute top-4 right-4 bg-red-500 text-white px-3 py-1 rounded-full flex items-center gap-2">
-                  <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                  <span>{formatDuration(recordingDuration)}</span>
+          <CardContent className="flex flex-col gap-6">
+
+            {/* View 1: Camera & Recording Controls */}
+            {!showResults && (
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden border border-white/20 shadow-2xl">
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className="absolute inset-0 w-full h-full object-contain"
+                  />
+                  <canvas
+                    ref={canvasRef}
+                    className="absolute inset-0 w-full h-full pointer-events-none"
+                  />
+                  {isRecording && (
+                    <div className="absolute top-4 right-4 bg-red-600 text-white px-4 py-1.5 rounded-full flex items-center gap-2 shadow-lg animate-pulse">
+                      <div className="w-2.5 h-2.5 bg-white rounded-full" />
+                      <span className="font-mono font-bold">{formatDuration(recordingDuration)}</span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div className="flex gap-4">
-              {!isRecording && (
-                <Button
-                  onClick={isStreaming ? stopCamera : startCamera}
-                  variant={isStreaming ? "destructive" : "default"}
-                  className="w-32"
-                >
-                  {isStreaming ? "Stop Camera" : "Start Camera"}
-                </Button>
-              )}
-
-              {isStreaming && (
-                <Button
-                  onClick={isRecording ? stopRecording : startRecording}
-                  variant={isRecording ? "destructive" : "default"}
-                  className="w-32"
-                  disabled={!isStreaming || isUploading}
-                >
-                  {isRecording ? "Stop Recording" : "Start Recording"}
-                </Button>
-              )}
-            </div>
-
-            {isUploading && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                <div className="bg-white p-8 rounded-lg shadow-lg flex flex-col items-center gap-4">
-                  <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                  <p className="text-lg font-semibold">
-                    Processing your recording...
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Please wait while we prepare your video
-                  </p>
+                <div className="flex gap-4 mt-2">
+                  {!isStreaming ? (
+                    <Button onClick={startCamera} size="lg" className="w-40 font-bold">
+                      Turn On Camera
+                    </Button>
+                  ) : (
+                    <>
+                      {!isRecording ? (
+                        <Button onClick={startRecording} variant="default" size="lg" className="w-40 bg-red-600 hover:bg-red-700 font-bold">
+                          Start Recording
+                        </Button>
+                      ) : (
+                        <Button onClick={stopRecording} variant="destructive" size="lg" className="w-40 font-bold animate-pulse">
+                          Stop Recording
+                        </Button>
+                      )}
+                    </>
+                  )}
                 </div>
-              </div>
-            )}
 
-            {recordingError && (
-              <div className="w-full p-4 bg-destructive/10 text-destructive rounded-lg text-center mt-4">
-                {recordingError}
-              </div>
-            )}
-
-            {isStreaming && !isRecording && Object.keys(emotions).length > 0 && (
-              <>
-                <div className="w-full p-4 bg-muted rounded-lg">
-                  <h3 className="font-semibold mb-2">Detected Emotions:</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    {Object.entries(emotions).map(([emotion, probability]) => (
-                      <div key={emotion} className="flex justify-between">
-                        <span className="capitalize">{emotion}:</span>
-                        <span>{(probability * 100).toFixed(1)}%</span>
-                      </div>
-                    ))}
+                {/* Real-time Feedback (Only visible when streaming, not recording) */}
+                {isStreaming && !isRecording && (
+                  <div className="grid grid-cols-2 gap-4 w-full mt-4">
+                    <div className="bg-muted/50 p-4 rounded-xl border border-white/5">
+                      <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wider">Dominant Emotion</h3>
+                      <p className="text-2xl font-bold capitalize text-primary">{getDominantEmotion(emotions)}</p>
+                    </div>
+                    <div className="bg-muted/50 p-4 rounded-xl border border-white/5">
+                      <h3 className="text-sm font-semibold mb-2 text-muted-foreground uppercase tracking-wider">Gaze Direction</h3>
+                      <p className="text-2xl font-bold capitalize text-primary">{gazeDirection}</p>
+                    </div>
                   </div>
-                </div>
+                )}
 
-                <div className="w-full p-4 bg-primary/10 text-primary rounded-lg text-center">
-                  <h3 className="font-semibold mb-1">Dominant Emotion:</h3>
-                  <div className="text-2xl font-bold capitalize">
-                    {getDominantEmotion(emotions)}
+                {isUploading && (
+                  <div className="text-primary font-semibold animate-pulse">
+                    Processing Recording...
                   </div>
-                </div>
-              </>
-            )}
-
-            {backendError && (
-              <div className="w-full p-4 bg-destructive/10 text-destructive rounded-lg text-center mt-4">
-                {backendError}
+                )}
               </div>
             )}
+
+
+            {/* View 2: Analysis Results */}
+            {showResults && (
+              <div className="flex flex-col gap-8 w-full">
+                {/* Top Section: Video & Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Recorded Video Player */}
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-lg ml-1">Your Recording</h3>
+                    <div className="aspect-video bg-black rounded-lg overflow-hidden border border-white/10">
+                      {uploadedVideo && (
+                        <video
+                          src={`http://localhost:5328/uploads/${uploadedVideo}`}
+                          controls
+                          className="w-full h-full object-contain"
+                        />
+                      )}
+                    </div>
+                  </div>
+
+
+                </div>
+
+                {/* Detailed Analysis Component */}
+                {transcription && (analysis || recordingAnalysis) && uploadedAudio && (
+                  <Card className="bg-black/40 border border-white/10 backdrop-blur-md mt-4">
+                    <CardContent className="pt-6">
+                      {enhancedAudio && (
+                        <div className="mb-6 flex flex-col items-center gap-2">
+                          <h3 className="text-sm font-medium text-gray-400">Enhanced Audio</h3>
+                          <audio controls src={enhancedAudio} className="w-full max-w-md" />
+                        </div>
+                      )}
+                      <DetailedAnalysis
+                        analysis={analysis}
+                        recordingAnalysis={recordingAnalysis}
+                        transcription={transcription}
+                      />
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex justify-center pt-6">
+                  <Button onClick={handleRecordAgain} size="lg" variant="outline" className="px-8">
+                    Record Again
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Error Display */}
+            {(backendError || recordingError) && (
+              <div className="bg-destructive/10 text-destructive p-4 rounded-lg text-center border border-destructive/20">
+                {backendError || recordingError}
+              </div>
+            )}
+
           </CardContent>
         </Card>
       </main>

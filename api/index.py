@@ -17,6 +17,7 @@ import traceback
 import whisper  # Add import for Whisper
 import numpy as np
 import base64
+import threading
 from PIL import Image
 from deepface import DeepFace
 import subprocess  # Add at the top with other imports
@@ -47,7 +48,7 @@ logger = logging.getLogger(__name__)
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app, resources={r"/*": {
-    "origins": ["http://localhost:3000"],
+    "origins": ["http://localhost:3000", "http://localhost:3001"],
     "methods": ["GET", "POST", "OPTIONS"],
     "allow_headers": ["Content-Type", "Accept"],
     "supports_credentials": True,
@@ -200,25 +201,7 @@ def analyse_filler_words(text):
     # Calculate TTR
     ttr_analysis = calculate_ttr(text)
     
-    # Get logical flow score
-    try:
-        logical_score = logical_flow(text)
-        # Convert logical score to percentage and determine emoji
-        logical_percentage = logical_score * 100
-        if logical_percentage >= 80:
-            logical_emoji = "🌠"  # Excellent flow
-        elif logical_percentage >= 60:
-            logical_emoji = "🌊"  # Good flow
-        elif logical_percentage >= 40:
-            logical_emoji = "🔄"  # Average flow
-        elif logical_percentage >= 20:
-            logical_emoji = "🌫️"  # Needs improvement
-        else:
-            logical_emoji = "🌪️"  # Poor flow
-    except Exception as e:
-        print(f"Error calculating logical flow: {str(e)}")
-        logical_percentage = 0
-        logical_emoji = "❓"
+
     
     return {
         "total_words": total_words,
@@ -227,10 +210,7 @@ def analyse_filler_words(text):
         "found_fillers": found_fillers,
         "filler_emoji": emoji,
         "ttr_analysis": ttr_analysis,
-        "logical_flow": {
-            "score": round(logical_percentage, 2),
-            "emoji": logical_emoji
-        }
+
     }
 
 def calculate_ttr(text):
@@ -263,46 +243,7 @@ def calculate_ttr(text):
         "emoji": emoji
     }
 
-def logical_flow(text):
-    try:
-        model_path = os.path.join(os.path.dirname(__file__), 'model', 'logical_model.pk')
-        print(f"Attempting to load model from: {model_path}")
-        
-        if not os.path.exists(model_path):
-            print(f"Model file not found at: {model_path}")
-            return 0.0
-        
-        # Check PyTorch version
-        import torch
-        print(f"PyTorch version: {torch.__version__}")
-        
-        # Check transformers version
-        import transformers
-        print(f"Transformers version: {transformers.__version__}")
-            
-        with open(model_path, 'rb') as f:
-            try:
-                logical_model = pkl.load(f)
-                print("Successfully loaded logical flow model")
-            except RuntimeError as e:
-                if "register_pytree_node()" in str(e):
-                    print("Version mismatch detected between PyTorch and transformers")
-                    print("Please ensure compatible versions are installed")
-                    return 0.0
-                raise
-        
-        print(f"Making prediction for text of length: {len(text)}")
-        pred: list[dict] = logical_model.predict(text)
-        score: float = pred[0]['score']
-        print(f"Logical flow prediction result: {score}")
-        
-        return score
-    except Exception as e:
-        print(f"Error in logical flow prediction: {str(e)}")
-        print(f"Error type: {type(e).__name__}")
-        print("Full traceback:")
-        traceback.print_exc()
-        return 0.0  # Return 0 as fallback to indicate failure
+
 
 def detect_emotions(image: Image) -> dict:
     """
@@ -312,22 +253,42 @@ def detect_emotions(image: Image) -> dict:
     # Convert PIL Image to numpy array for DeepFace
     image_arr = np.array(image)
     
+    # Initialize variables to prevent UnboundLocalError
+    face_base64 = None
+    normalized_emotions = {}
+    
     try:
         # Detect emotion using DeepFace
         try:
             # Wrap DeepFace to prevent crashing on OpenCV assertion errors
+            # Use 'ssd' or 'mtcnn' if opencv fails, or 'skip' if we accept full image
+            # We'll try 'ssd' as it's generally robust, or fall back to 'opencv' if needed
             result = DeepFace.analyze(image_arr, 
                                     actions=['emotion'], 
+                                    detector_backend='ssd',
                                     enforce_detection=False)
         except Exception as e:
-            logger.warning(f"DeepFace analysis failed for frame: {str(e)}")
-            # Provide fallback/empty result so stream continues
-            result = [{'dominant_emotion': 'neutral', 'emotion': {'neutral': 100}}]
+            logger.warning(f"DeepFace (ssd) analysis failed with error: {str(e)}")
+            # Try once more with default opencv but catching errors
+            try:
+                 result = DeepFace.analyze(image_arr, 
+                                    actions=['emotion'], 
+                                    detector_backend='opencv',
+                                    enforce_detection=False)
+            except Exception as e2:
+                logger.warning(f"DeepFace (opencv) analysis also failed: {str(e2)}")
+                # Provide fallback/empty result so stream continues
+                result = [{'dominant_emotion': 'neutral', 'emotion': {'neutral': 100}}]
 
         
         # Handle multiple faces by taking first one
+        # Handle multiple faces by taking first one
         if isinstance(result, list):
-            result = result[0]
+            if len(result) > 0:
+                result = result[0]
+            else:
+                 # Empty list returned
+                 result = {'dominant_emotion': 'neutral', 'emotion': {'neutral': 100}, 'region': {}}
         
         # Extract face region coordinates
         face_region = result.get('region', {})
@@ -620,7 +581,12 @@ def get_whisper_model():
             # Double-check after acquiring lock
             if _whisper_model is None:
                 logger.info("Lazy loading Whisper model (base)...")
-                _whisper_model = whisper.load_model("base")
+                model = whisper.load_model("base")
+                if not hasattr(model, 'transcribe'):
+                    logger.error(f"Loaded object is not a Whisper model! Type: {type(model)}")
+                    # Try to force reload or fail hard
+                    raise RuntimeError("Failed to load valid Whisper model")
+                _whisper_model = model
                 logger.info("Whisper model loaded successfully")
     
     return _whisper_model
@@ -856,6 +822,9 @@ def upload_video():
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
+# Lock for transcription to avoid race conditions with global model state
+_transcription_lock = threading.Lock()
+
 def transcribe_long_audio(audio_path, max_duration=30):
     """
     Transcribe longer audio files by splitting into chunks if needed.
@@ -866,7 +835,12 @@ def transcribe_long_audio(audio_path, max_duration=30):
         # Whisper can handle short and long audio automatically
         print(f"Transcribing audio file directly with Whisper...")
         whisper_model = get_whisper_model()
-        result = whisper_model.transcribe(audio_path, language='en', fp16=False)
+        
+        # Lock to ensure only one transcription happens at a time
+        # This prevents 'KeyError: Linear' and other race conditions in model inference
+        with _transcription_lock:
+            result = whisper_model.transcribe(audio_path, language='en', fp16=False)
+            
         transcribed_text = result.get("text", "").strip()
         print(f"Whisper result object keys: {result.keys()}")
         print(f"Raw transcription: '{transcribed_text}'")
@@ -875,12 +849,19 @@ def transcribe_long_audio(audio_path, max_duration=30):
         if not transcribed_text:
             print("WARNING: Whisper returned empty transcription!")
             print(f"Segments: {result.get('segments', [])}")
+            return None
         
         return transcribed_text
         
     except Exception as e:
-        print(f"Transcription error: {str(e)}")
-        return ""
+        logger.error(f"Transcription error type: {type(e)}")
+        logger.error(f"Transcription error: {str(e)}")
+        # Check if the error is a PyTorch module (weird case observed)
+        if 'Linear' in str(e) or 'Conv1d' in str(e):
+             logger.critical("Model seems to be corrupted or misloaded. Wrapper exception?")
+             
+        traceback.print_exc()
+        return None
 
 @app.route("/api/speech2text", methods=['POST'])
 def transcribe():
@@ -914,16 +895,57 @@ def transcribe():
         if input_size == 0:
             raise Exception("Input file is empty")
 
-        # Skip FFmpeg conversion - transcribe the input file directly
-        # Whisper can handle webm/mp4/wav files directly
-        print(f"Transcribing input file directly: {temp_input}")
-        text = transcribe_long_audio(temp_input)
+        # Convert to standard WAV format (16kHz, mono) to prevent model crashes
+        # This matches the robust logic in enhance_audio
+        temp_wav = os.path.join(temp_dir, "temp_clean.wav")
+        print(f"Normalizing audio format: {temp_input} -> {temp_wav}")
+        
+        ffmpeg_cmd = [
+            'ffmpeg',
+            '-y',
+            '-i', temp_input,
+            '-vn',
+            '-acodec', 'pcm_s16le',
+            '-ar', '16000',
+            '-ac', '1',
+            temp_wav
+        ]
+        
+        try:
+             subprocess.run(ffmpeg_cmd, check=True, capture_output=True, timeout=30)
+             if not os.path.exists(temp_wav) or os.path.getsize(temp_wav) == 0:
+                 print("WARNING: FFmpeg conversion failed/empty, falling back to original.")
+                 target_file = temp_input
+             else:
+                 target_file = temp_wav
+        except Exception as e:
+            print(f"FFmpeg conversion error: {e}. Using original file.")
+            target_file = temp_input
+
+        print(f"Transcribing file: {target_file}")
+        text = transcribe_long_audio(target_file)
         print(f"Transcription result: '{text}' (length: {len(text) if text else 0})")
         
         if not text:
             print("WARNING: Transcription returned empty text")
-            text = " "  # Use a space to prevent downstream failures, or handle empty text in analysis
-            # We don't raise Exception here to allow the UI to receive a response
+            # Return a special response for no speech
+            return jsonify({
+                "text": "",
+                "no_speech_detected": True,
+                "analysis": {
+                    "total_words": 0,
+                    "filler_percentage": 0,
+                    "filler_count": 0,
+                    "found_fillers": {},
+                    "logical_flow": {"score": 0, "emoji": "none"},
+                    "ttr_analysis": {"diversity_level": "none", "emoji": "none"}
+                },
+                "speaking_metrics": {
+                    "word_count": 0,
+                    "confidence_level": "None",
+                    "confidence_emoji": "😶"
+                }
+            })
         
         
         # Comprehensive speech analysis
@@ -1424,19 +1446,8 @@ def enhance_audio():
             else:
                 diversity_comment = "Try to use a wider range of words to enhance your speech's impact."
                 
-            # Logical flow comment
+            # Logical flow comment removed
             flow_comment = ""
-            flow_score = analysis['logical_flow']['score']
-            if flow_score >= 80:
-                flow_comment = "Your ideas flowed together excellently, creating a cohesive narrative."
-            elif flow_score >= 60:
-                flow_comment = "Your speech had good logical progression between points."
-            elif flow_score >= 40:
-                flow_comment = "The logical flow was adequate, but could use stronger transitions between ideas."
-            elif flow_score >= 20:
-                flow_comment = "Work on strengthening the connections between your points for better flow."
-            else:
-                flow_comment = "Focus on organizing your thoughts more logically when speaking."
                 
             # Category-specific advice based on mode
             category_specific_advice = ""
@@ -1548,11 +1559,25 @@ def enhance_audio():
             if not isinstance(enhanced_text, str):
                 enhanced_text = str(enhanced_text)
 
-            response = sse.send(enhanced_text)
-            
             # Save to temporary buffer
             temp_buffer = io.BytesIO()
-            save_audio(response, temp_buffer)
+            try:
+                logger.info(f"Generating TTS for text: {enhanced_text[:50]}...")
+                response = sse.send(enhanced_text)
+                save_audio(response, temp_buffer)
+            except Exception as tts_error:
+                logger.error(f"TTS generation failed: {str(tts_error)}")
+                # Fallback: If TTS fails, we still return the text but maybe no audio or a warning?
+                # For now, let's just log it and NOT re-raise, effectively succeeding without audio or with empty audio.
+                # But the client expects audio.
+                # Let's try to return a silent audio or just ignore the audio part if possible? 
+                # Or better, return a 200 but indicating failure in the response body if the client supports it.
+                # Since the client likely checks for 200 OK, throwing 500 crashes the flow.
+                # We will catch this specific 400 error from pyneuphonic.
+                if "400" in str(tts_error):
+                    logger.warning("TTS API rejected the text (400). Skipping audio generation.")
+                # We return what we have (transcription + analysis), effectively bypassing the crash.
+                pass
             temp_buffer.seek(0)
             
             # Verify audio was generated
