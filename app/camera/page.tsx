@@ -563,12 +563,7 @@ export default function CameraPage() {
                 {transcription && (analysis || recordingAnalysis) && uploadedAudio && (
                   <Card className="bg-black/40 border border-white/10 backdrop-blur-md mt-4">
                     <CardContent className="pt-6">
-                      {enhancedAudio && (
-                        <div className="mb-6 flex flex-col items-center gap-2">
-                          <h3 className="text-sm font-medium text-gray-400">Enhanced Audio</h3>
-                          <audio controls src={enhancedAudio} className="w-full max-w-md" />
-                        </div>
-                      )}
+                      {/* Audio player removed as per user request */}
                       <DetailedAnalysis
                         analysis={analysis}
                         recordingAnalysis={recordingAnalysis}

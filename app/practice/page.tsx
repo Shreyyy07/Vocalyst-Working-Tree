@@ -145,10 +145,13 @@ export default function PracticePage() {
         if (parsed.modeId && parsed.view) {
           const mode = PRACTICE_MODES.find(m => m.id === parsed.modeId);
           if (mode) {
-            console.log("Restoring practice state:", parsed);
-            setSelectedMode(mode);
-            setCurrentPromptIndex(parsed.promptIndex || 0);
-            setView(parsed.view === 'results' ? 'results' : 'practice');
+            // Only restore if we are not already in a valid state to prevent loops
+            if (!selectedMode && view !== 'results') {
+              console.log("Restoring practice state:", parsed);
+              setSelectedMode(mode);
+              setCurrentPromptIndex(parsed.promptIndex || 0);
+              setView(parsed.view === 'results' ? 'results' : 'practice');
+            }
 
             // Restore data if available
             if (parsed.transcription) setTranscription(parsed.transcription);
@@ -452,7 +455,8 @@ export default function PracticePage() {
       }
 
       const enBlob = await enResponse.blob();
-      const outputAudioBlob = new Blob([enBlob], { type: 'audio/wav' }); // Fix playability
+      const contentType = enResponse.headers.get("content-type") || "audio/wav";
+      const outputAudioBlob = new Blob([enBlob], { type: contentType });
       setEnhancedAudio(URL.createObjectURL(outputAudioBlob));
 
     } catch (e) {

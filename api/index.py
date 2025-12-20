@@ -10,6 +10,13 @@ from mediapipe.tasks.python import vision
 from mediapipe import solutions
 from mediapipe.framework.formats import landmark_pb2
 import logging
+import os
+
+# Suppress TensorFlow/DeepFace logs
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+logging.getLogger("tensorflow").setLevel(logging.ERROR)
+logging.getLogger("deepface").setLevel(logging.ERROR)
+
 from pyneuphonic import Neuphonic, save_audio, TTSConfig
 import io
 from dotenv import load_dotenv
@@ -617,9 +624,60 @@ def text_to_speech():
             raise ValueError("NEUPHONIC_API_KEY not found in environment variables")
         client = Neuphonic(api_key=api_key)
         #testend
+        # Use TTSConfig for proper parameter building
+        # Note: SSEClient send() method takes tts_config argument, setting attributes on sse object does nothing
+        # Validate voice using Voices API
+        # Default config params
+        config_params = {}
+        
+        # Only set speed if different from default 1.0
+        if abs(speed - 1.0) > 0.01:
+            config_params['speed'] = float(speed)
+
+        try:
+            # List available voices to find a valid ID
+            voices_response = client.voices.list()
+            available_voices = voices_response.data.get('voices', [])
+            
+            selected_voice = None
+            
+            # 1. Try to find the requested voice by name or ID
+            if voice and voice != 'default':
+                for v in available_voices:
+                    if v.get('voice_id') == voice or v.get('name').lower() == voice.lower():
+                        selected_voice = v
+                        print(f"Found matching voice: {v.get('name')} ({v.get('voice_id')})")
+                        break
+            
+            # 2. If no match or default, use the first available English voice
+            if not selected_voice:
+                print("Using fallback voice selection...")
+                for v in available_voices:
+                    # Prefer english if possible
+                    if 'en' in v.get('lang_code', 'en'): 
+                        selected_voice = v
+                        print(f"Selected fallback voice: {v.get('name')} ({v.get('voice_id')})")
+                        break
+            
+            # 3. If still nothing, pick the very first one
+            if not selected_voice and available_voices:
+                selected_voice = available_voices[0]
+                print(f"Selected first available voice: {selected_voice.get('voice_id')}")
+
+            if selected_voice:
+                config_params['voice_id'] = selected_voice.get('voice_id')
+                # IMPORTANT: Sync language code with the voice
+                if selected_voice.get('lang_code'):
+                     config_params['lang_code'] = selected_voice.get('lang_code')
+            
+        except Exception as voice_err:
+            print(f"Warning: Failed to list/verify voices: {voice_err}")
+             
+        config = TTSConfig(**config_params)
         sse = client.tts.SSEClient()
-        sse.speed = speed
-        response = sse.send(text)
+        
+        print(f"Sending text to Neuphonic: '{text[:20]}...' params={config_params}")
+        response = sse.send(text, tts_config=config)
         
         # Save audio to temporary buffer
         temp_file = io.BytesIO()
@@ -1448,6 +1506,7 @@ def enhance_audio():
                 
             # Logical flow comment removed
             flow_comment = ""
+            flow_score = 0 # Dummy value to prevent errors
                 
             # Category-specific advice based on mode
             category_specific_advice = ""
@@ -1522,7 +1581,6 @@ def enhance_audio():
                 "total_words": analysis['total_words'],
                 "unique_words": analysis['ttr_analysis']['unique_words'],
                 "vocabulary_score": analysis['ttr_analysis']['ttr'],
-                "logical_flow_score": analysis['logical_flow']['score'],
                 "filler_percentage": analysis['filler_percentage'],
                 "practice_category": practice_category or "unknown"
             }
@@ -1548,10 +1606,11 @@ def enhance_audio():
             logger.warning("Enhanced text is empty or too short! Using fallback.")
             enhanced_text = "Good job on your practice. Keep improving your skills."
 
-        try:
             # Create a fresh client 
             sse = client.tts.SSEClient()
-            sse.speed = speech_speed
+            
+            # Create config
+            tts_config = TTSConfig(speed=float(speech_speed))
             
             # Send request with timeout handling
             # Clean text of potentially problematic characters if needed, but UTF-8 should be fine.
@@ -1563,7 +1622,7 @@ def enhance_audio():
             temp_buffer = io.BytesIO()
             try:
                 logger.info(f"Generating TTS for text: {enhanced_text[:50]}...")
-                response = sse.send(enhanced_text)
+                response = sse.send(enhanced_text, tts_config=tts_config)
                 save_audio(response, temp_buffer)
             except Exception as tts_error:
                 logger.error(f"TTS generation failed: {str(tts_error)}")
@@ -1608,13 +1667,7 @@ def enhance_audio():
             logger.info("Successfully generated and returned enhanced audio")
             return response
             
-        except Exception as tts_error:
-            logger.error(f"TTS generation error: {str(tts_error)}")
-            traceback.print_exc()
-            # If it's a 400 error, it might be the content.
-            if "400" in str(tts_error):
-                logger.error("Got 400 error. Text payload might be invalid.")
-            return jsonify({"error": f"Speech generation failed: {str(tts_error)}"}), 500
+
         
     except Exception as e:
         logger.error(f"Speech Enhancement Error: {str(e)}")
