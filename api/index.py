@@ -62,8 +62,14 @@ CORS(app, resources={r"/*": {
     "expose_headers": ["Content-Type", "Content-Disposition"]
 }})
 
-# Add after the imports
-FILLER_WORDS = [
+# Global Neuphonic Client (Hardcoded Key for Stability)
+NEUPHONIC_API_KEY_HARDCODED = "8999e98ca9370e30d6742fe614bbeb549bfb7132c8d808077ce81cdd6c7da4a1.3155bb0d-6e2f-46f2-af40-be217cd8b40d"
+try:
+    GLOBAL_TTS_CLIENT = Neuphonic(api_key=NEUPHONIC_API_KEY_HARDCODED)
+    print("Green Light: Global TTS Client Initialized.")
+except Exception as e:
+    print(f"Red Alert: Global TTS Init Failed: {e}")
+    GLOBAL_TTS_CLIENT = None
     "um", "uh", "like", "you know", "well", "so", "actually", "basically", "i mean", 
     "right", "okay", "er", "hmm", "literally", "anyway", "of course", "i guess", 
     "in other words", "obviously", "to be honest", "just", "seriously", "you see", 
@@ -77,7 +83,7 @@ FILLER_WORDS = [
     # Add variations that Whisper commonly produces
     "umm", "ummm", "uhh", "uhhh", "hmm", "hmmm", "mm", "mmm", "mhm", "uh-huh", "mm-hmm",
     "ah", "ahh", "oh", "ohh", "eh", "ehh", "mm-mm", "uh huh", "mm hmm"
-]
+
 
 def ngrams(words, n):
     output = []
@@ -605,7 +611,7 @@ def hello_world():
 
 @app.route("/api/tts", methods=['POST'])
 def text_to_speech():
-    """Converts text to speech using Neuphonic API"""
+    """Converts text to speech using Google Gemini API"""
     try:
         data = request.get_json()
         text = data.get('text', '')
@@ -614,75 +620,117 @@ def text_to_speech():
         
         if not text:
             return jsonify({"error": "No text provided"}), 400
+            
+        # Sanitize text
+        text = text.strip()
+        print(f"Processing TTS request - text: {repr(text)}, voice: {voice}, speed: {speed}")
 
-        print(f"Processing TTS request - text: {text}, voice: {voice}, speed: {speed}")
-
-        # Get SSE client and configure it
-        # test
-        api_key = os.environ.get('NEUPHONIC_API_KEY')
-        if not api_key:
-            raise ValueError("NEUPHONIC_API_KEY not found in environment variables")
-        client = Neuphonic(api_key=api_key)
-        #testend
-        # Use TTSConfig for proper parameter building
-        # Note: SSEClient send() method takes tts_config argument, setting attributes on sse object does nothing
-        # Validate voice using Voices API
-        # Default config params
-        config_params = {}
-        
-        # Only set speed if different from default 1.0
-        if abs(speed - 1.0) > 0.01:
-            config_params['speed'] = float(speed)
-
-        try:
-            # List available voices to find a valid ID
-            voices_response = client.voices.list()
-            available_voices = voices_response.data.get('voices', [])
-            
-            selected_voice = None
-            
-            # 1. Try to find the requested voice by name or ID
-            if voice and voice != 'default':
-                for v in available_voices:
-                    if v.get('voice_id') == voice or v.get('name').lower() == voice.lower():
-                        selected_voice = v
-                        print(f"Found matching voice: {v.get('name')} ({v.get('voice_id')})")
-                        break
-            
-            # 2. If no match or default, use the first available English voice
-            if not selected_voice:
-                print("Using fallback voice selection...")
-                for v in available_voices:
-                    # Prefer english if possible
-                    if 'en' in v.get('lang_code', 'en'): 
-                        selected_voice = v
-                        print(f"Selected fallback voice: {v.get('name')} ({v.get('voice_id')})")
-                        break
-            
-            # 3. If still nothing, pick the very first one
-            if not selected_voice and available_voices:
-                selected_voice = available_voices[0]
-                print(f"Selected first available voice: {selected_voice.get('voice_id')}")
-
-            if selected_voice:
-                config_params['voice_id'] = selected_voice.get('voice_id')
-                # IMPORTANT: Sync language code with the voice
-                if selected_voice.get('lang_code'):
-                     config_params['lang_code'] = selected_voice.get('lang_code')
-            
-        except Exception as voice_err:
-            print(f"Warning: Failed to list/verify voices: {voice_err}")
+        # Google Gemini TTS doesn't need client initialization
+        # Voice parameter is passed directly to subprocess
              
-        config = TTSConfig(**config_params)
-        sse = client.tts.SSEClient()
+
+        # SUBPROCESS ISOLATION (File-Based IPC)
+        # We write input to file, run script, read output from file.
+        # This bypasses all environment/threading options.
+        import subprocess
         
-        print(f"Sending text to Neuphonic: '{text[:20]}...' params={config_params}")
-        response = sse.send(text, tts_config=config)
+        # Paths
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        script_path = os.path.join(current_dir, 'simple_tts.py')
+        input_path = os.path.join(current_dir, 'tts_input.txt')
+        output_path = os.path.join(current_dir, 'tts_output.wav')
+        error_path = os.path.join(current_dir, 'tts_error.txt')
         
-        # Save audio to temporary buffer
-        temp_file = io.BytesIO()
-        save_audio(response, temp_file)
+        # Cleanup
+        for p in [input_path, output_path, error_path]:
+            if os.path.exists(p):
+                try: os.remove(p)
+                except: pass
+                
+        # Write Input as JSON with all config
+        tts_input_config = {
+            'text': text,
+            'voice': voice,  # Pass voice directly (Gemini handles mapping)
+            'speed': speed
+        }
+        try:
+            with open(input_path, 'w', encoding='utf-8') as f:
+                json.dump(tts_input_config, f)
+        except Exception as write_err:
+            print(f"Error writing input file: {write_err}")
+            return jsonify({"error": "Failed to prepare TTS request"}), 500
+            
+        print(f"Executing TTS Subprocess: {script_path}")
         
+        # Run
+        try:
+            # Run with same python executable
+            result = subprocess.run(
+                [sys.executable, script_path],
+                cwd=current_dir,
+                capture_output=True,
+                text=True,
+                timeout=60,  # Increased timeout for Gemini API
+                env=os.environ
+            )
+            
+            print(f"Subprocess Stdout: {result.stdout}")
+            if result.stderr:
+                print(f"Subprocess Stderr: {result.stderr}")
+            
+            # Check for error file first
+            if os.path.exists(error_path):
+                with open(error_path, 'r') as f:
+                    err_msg = f.read()
+                # Parse error message for user-friendly response
+                if "Rate limit" in err_msg or "429" in err_msg:
+                    return jsonify({"error": "TTS service is busy. Please try again in a moment."}), 429
+                elif "quota" in err_msg.lower() or "QUOTA" in err_msg:
+                    return jsonify({"error": "TTS quota exceeded. Please contact support."}), 503
+                elif "Authentication" in err_msg or "API key" in err_msg:
+                    return jsonify({"error": "TTS service configuration error."}), 500
+                else:
+                    return jsonify({"error": f"TTS generation failed: {err_msg[:100]}"}), 500
+            
+            # Check return code
+            if result.returncode != 0:
+                error_msg = result.stderr or "Unknown error"
+                print(f"Subprocess failed with code {result.returncode}: {error_msg}")
+                return jsonify({"error": "TTS generation failed. Please try again."}), 500
+            
+            # Validate output file exists
+            if not os.path.exists(output_path):
+                print("Error: Output file not created")
+                return jsonify({"error": "TTS generation failed to produce audio."}), 500
+            
+            # Read and validate output
+            try:
+                with open(output_path, 'rb') as f:
+                    audio_data = f.read()
+            except Exception as read_err:
+                print(f"Error reading output file: {read_err}")
+                return jsonify({"error": "Failed to read generated audio."}), 500
+            
+            # Validate audio data
+            if len(audio_data) == 0:
+                print("Error: Generated audio file is empty")
+                return jsonify({"error": "Generated audio is empty."}), 500
+            
+            if len(audio_data) < 100:  # WAV header is ~44 bytes, so <100 is suspicious
+                print(f"Warning: Audio file is very small ({len(audio_data)} bytes)")
+            
+            # Load into BytesIO
+            temp_file = io.BytesIO(audio_data)
+            
+            print(f"Subprocess Success. Audio size: {len(audio_data)} bytes")
+            
+        except subprocess.TimeoutExpired:
+            print("TTS subprocess timed out")
+            return jsonify({"error": "TTS generation timed out. Please try a shorter text."}), 504
+        except Exception as proc_err:
+            print(f"Subprocess Execution Error: {proc_err}")
+            return jsonify({"error": "TTS service error. Please try again."}), 500
+
         # Debug audio generation
         temp_file.seek(0)
         audio_data = temp_file.read()
@@ -1382,12 +1430,11 @@ def enhance_audio():
                 logger.info(f"Received practice category from query params: {practice_category}")
         except Exception as e:
             logger.warning(f"Error parsing category: {str(e)}")
-        
-        # Check for API key first thing
-        api_key = os.environ.get('NEUPHONIC_API_KEY')
-        if not api_key:
-            logger.error("NEUPHONIC_API_KEY not found in environment variables")
-            return jsonify({"error": "TTS API key not configured"}), 500
+        # FORCE KNOWN WORKING KEY (Bypass .env issues)
+        api_key = "8999e98ca9370e30d6742fe614bbeb549bfb7132c8d808077ce81cdd6c7da4a1.3155bb0d-6e2f-46f2-af40-be217cd8b40d"
+        # api_key_env = os.environ.get('NEUPHONIC_API_KEY')
+        # if not api_key_env: ...
+        # api_key = api_key_env.strip()
         
         # Initialize client early
         client = Neuphonic(api_key=api_key)
