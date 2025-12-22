@@ -70,6 +70,9 @@ try:
 except Exception as e:
     print(f"Red Alert: Global TTS Init Failed: {e}")
     GLOBAL_TTS_CLIENT = None
+
+# Define filler words set for analysis
+FILLER_WORDS = {
     "um", "uh", "like", "you know", "well", "so", "actually", "basically", "i mean", 
     "right", "okay", "er", "hmm", "literally", "anyway", "of course", "i guess", 
     "in other words", "obviously", "to be honest", "just", "seriously", "you see", 
@@ -83,6 +86,7 @@ except Exception as e:
     # Add variations that Whisper commonly produces
     "umm", "ummm", "uhh", "uhhh", "hmm", "hmmm", "mm", "mmm", "mhm", "uh-huh", "mm-hmm",
     "ah", "ahh", "oh", "ohh", "eh", "ehh", "mm-mm", "uh huh", "mm hmm"
+}
 
 
 def ngrams(words, n):
@@ -634,12 +638,15 @@ def text_to_speech():
         # This bypasses all environment/threading options.
         import subprocess
         
-        # Paths
+        # Paths - all in temp directory to keep api folder clean
         current_dir = os.path.dirname(os.path.abspath(__file__))
+        temp_dir = os.path.join(current_dir, 'temp')
+        os.makedirs(temp_dir, exist_ok=True)  # Ensure temp directory exists
+        
         script_path = os.path.join(current_dir, 'simple_tts.py')
-        input_path = os.path.join(current_dir, 'tts_input.txt')
-        output_path = os.path.join(current_dir, 'tts_output.wav')
-        error_path = os.path.join(current_dir, 'tts_error.txt')
+        input_path = os.path.join(temp_dir, 'tts_input.txt')
+        output_path = os.path.join(temp_dir, 'tts_output.wav')
+        error_path = os.path.join(temp_dir, 'tts_error.txt')
         
         # Cleanup
         for p in [input_path, output_path, error_path]:
