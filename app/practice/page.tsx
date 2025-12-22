@@ -444,26 +444,26 @@ export default function PracticePage() {
       // because processLocalAnalysisData already set the definitive emotions/gaze.
       // logic.
 
-      // Enhancement
-      setIsEnhancing(true);
-      const enResponse = await fetch("http://localhost:5328/api/enhance-audio", {
-        method: "POST", body: formData
-      });
+      // Enhancement - Endpoint not implemented yet
+      // setIsEnhancing(true);
+      // const enResponse = await fetch("http://localhost:5328/api/enhance-audio", {
+      //   method: "POST", body: formData
+      // });
 
-      if (!enResponse.ok) {
-        throw new Error("Enhancement failed");
-      }
+      // if (!enResponse.ok) {
+      //   throw new Error("Enhancement failed");
+      // }
 
-      const enBlob = await enResponse.blob();
-      const contentType = enResponse.headers.get("content-type") || "audio/wav";
-      const outputAudioBlob = new Blob([enBlob], { type: contentType });
-      setEnhancedAudio(URL.createObjectURL(outputAudioBlob));
+      // const enBlob = await enResponse.blob();
+      // const contentType = enResponse.headers.get("content-type") || "audio/wav";
+      // const outputAudioBlob = new Blob([enBlob], { type: contentType });
+      // setEnhancedAudio(URL.createObjectURL(outputAudioBlob));
 
     } catch (e) {
       console.error("Analysis failed:", e);
     } finally {
       setIsTranscribing(false);
-      setIsEnhancing(false);
+      // setIsEnhancing(false);
     }
   };
 

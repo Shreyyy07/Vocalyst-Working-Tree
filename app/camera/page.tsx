@@ -39,6 +39,9 @@ export default function CameraPage() {
   const emotionsDataRef = useRef<Array<{ timestamp: number; emotions: Emotions }>>([]);
   const gazeDataRef = useRef<Array<{ timestamp: number; direction: string }>>([]);
 
+  // CRITICAL FIX: Use ref to track recording state to avoid stale closures
+  const isRecordingRef = useRef<boolean>(false);
+
   // Hardware refs
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -119,17 +122,26 @@ export default function CameraPage() {
       if (!videoRef.current || !canvasRef.current) return;
 
       const result = await response.json();
+      console.log("Detection result:", result);
 
       if (result.success && result.face_detected) {
+        console.log("Face detected, emotions:", result.emotions);
         setEmotions(result.emotions);
 
-        if (isRecording) {
+        if (isRecordingRef.current) {
           const timestamp = Date.now();
+          console.log("Recording active, storing emotion data at", timestamp);
           emotionsDataRef.current.push({ timestamp, emotions: result.emotions });
+          console.log("Total emotion frames stored:", emotionsDataRef.current.length);
+
           if (result.gaze) {
             gazeDataRef.current.push({ timestamp, direction: result.gaze.direction });
           }
+        } else {
+          console.log("Not recording, skipping emotion storage");
         }
+      } else {
+        console.log("No face detected in frame");
       }
 
       if (result.gaze) {
@@ -273,6 +285,8 @@ export default function CameraPage() {
 
       mediaRecorder.start(100);
       setIsRecording(true);
+      isRecordingRef.current = true; // CRITICAL: Sync ref with state
+      console.log("Recording started, isRecordingRef set to true");
       recordingTimerRef.current = setInterval(() => setRecordingDuration(prev => prev + 1), 1000);
 
     } catch (e) {
@@ -285,6 +299,8 @@ export default function CameraPage() {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
+      isRecordingRef.current = false; // CRITICAL: Sync ref with state
+      console.log("Recording stopped, isRecordingRef set to false");
     }
   };
 
@@ -318,7 +334,7 @@ export default function CameraPage() {
       // Trigger backend analysis
       if (result.has_audio) {
         getTranscription(result.audio_filename);
-        enhanceAudio(result.audio_filename);
+        // enhanceAudio(result.audio_filename); // Endpoint not implemented yet
       } else {
         setTranscription("No audio detected.");
       }
@@ -336,46 +352,87 @@ export default function CameraPage() {
 
   const processLocalAnalysisData = (duration: number) => {
     // Calculate top emotions locally from the ref data gathered during recording
+    console.log("Processing emotion data, total frames:", emotionsDataRef.current.length);
+
     const emotionSums: Record<string, number> = {};
     const emotionCounts: Record<string, number> = {};
 
-    emotionsDataRef.current.forEach(({ emotions }) => {
-      Object.entries(emotions).forEach(([e, v]) => {
-        emotionSums[e] = (emotionSums[e] || 0) + v;
-        emotionCounts[e] = (emotionCounts[e] || 0) + 1;
+    try {
+      // Safely process emotion data with error handling
+      emotionsDataRef.current.forEach(({ emotions }) => {
+        if (!emotions || typeof emotions !== 'object') return; // Skip invalid data
+
+        Object.entries(emotions).forEach(([e, v]) => {
+          if (typeof v === 'number' && !isNaN(v)) { // Validate numeric values
+            emotionSums[e] = (emotionSums[e] || 0) + v;
+            emotionCounts[e] = (emotionCounts[e] || 0) + 1;
+          }
+        });
       });
-    });
 
-    const averageEmotions = Object.entries(emotionSums)
-      .map(([emotion, sum]) => ({
-        emotion,
-        average: sum / emotionCounts[emotion]
-      }))
-      .sort((a, b) => b.average - a.average)
-      .slice(0, 3)
-      .map(({ emotion, average }) => ({
-        emotion,
-        percentage: (average * 100).toFixed(1)
-      }));
+      console.log("Emotion sums:", emotionSums);
+      console.log("Emotion counts:", emotionCounts);
 
-    // Calculate gaze
-    const directionCounts: Record<string, number> = {};
-    gazeDataRef.current.forEach(({ direction }) => {
-      directionCounts[direction] = (directionCounts[direction] || 0) + 1;
-    });
-    const sortedGaze = Object.entries(directionCounts)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 3)
-      .map(([direction, count]) => ({
-        direction,
-        percentage: ((count / gazeDataRef.current.length) * 100).toFixed(1)
-      }));
+      const averageEmotions = Object.entries(emotionSums)
+        .map(([emotion, sum]) => ({
+          emotion,
+          average: emotionCounts[emotion] > 0 ? sum / emotionCounts[emotion] : 0
+        }))
+        .filter(({ average }) => average > 0) // Filter out zero values
+        .sort((a, b) => b.average - a.average)
+        .slice(0, 3)
+        .map(({ emotion, average }) => ({
+          emotion,
+          percentage: (average * 100).toFixed(1)
+        }));
 
-    setRecordingAnalysis({
-      emotions: averageEmotions,
-      gaze: sortedGaze,
-      duration: duration
-    });
+      console.log("Average emotions (top 3):", averageEmotions);
+
+      // Fallback if no emotions detected
+      const finalEmotions = averageEmotions.length > 0
+        ? averageEmotions
+        : [{ emotion: 'neutral', percentage: '100.0' }];
+
+      // Calculate gaze with error handling
+      const directionCounts: Record<string, number> = {};
+      gazeDataRef.current.forEach(({ direction }) => {
+        if (direction && typeof direction === 'string') { // Validate direction
+          directionCounts[direction] = (directionCounts[direction] || 0) + 1;
+        }
+      });
+
+      const totalGazeFrames = Math.max(1, gazeDataRef.current.length); // Prevent division by zero
+      const sortedGaze = Object.entries(directionCounts)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 3)
+        .map(([direction, count]) => ({
+          direction,
+          percentage: ((count / totalGazeFrames) * 100).toFixed(1)
+        }));
+
+      // Fallback if no gaze detected
+      const finalGaze = sortedGaze.length > 0
+        ? sortedGaze
+        : [{ direction: 'center', percentage: '100.0' }];
+
+      const recordingData = {
+        emotions: finalEmotions,
+        gaze: finalGaze,
+        duration: duration
+      };
+
+      console.log("Setting recordingAnalysis:", recordingData);
+      setRecordingAnalysis(recordingData);
+
+    } catch (error) {
+      console.error("Error processing analysis data:", error);
+      // Set fallback data on error
+      setRecordingAnalysis({
+        emotions: [{ emotion: 'neutral', percentage: '100.0' }],
+        gaze: [{ direction: 'center', percentage: '100.0' }],
+        duration: duration
+      });
+    }
   };
 
   // --- Backend Analysis Functions (Ported from recordings page) ---

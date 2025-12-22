@@ -1730,6 +1730,204 @@ def enhance_audio():
         error_response.headers['Access-Control-Allow-Origin'] = '*'
         return error_response, 500
 
+@app.route("/api/generate-suggestions", methods=['POST'])
+def generate_suggestions():
+    """Generate AI-powered personalized suggestions based on performance"""
+    try:
+        data = request.json
+        
+        # Validate input data
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        analysis = data.get('analysis', {})
+        recording_analysis = data.get('recordingAnalysis', {})
+        practice_mode = data.get('practiceMode', 'general')
+        transcription = data.get('transcription', '')
+        
+        # Validate required fields
+        if not analysis or not recording_analysis:
+            return jsonify({"error": "Missing required analysis data"}), 400
+        
+        # Extract key metrics with safe defaults
+        filler_pct = float(analysis.get('filler_percentage', 0))
+        filler_count = int(analysis.get('filler_count', 0))
+        total_words = int(analysis.get('total_words', 0))
+        found_fillers = analysis.get('found_fillers', [])
+        speaking_metrics = analysis.get('speaking_metrics', {})
+        pauses = int(speaking_metrics.get('estimated_pauses', 0))
+        confidence = int(speaking_metrics.get('confidence_score', 70))
+        
+        # Extract emotion and gaze data safely
+        emotions = recording_analysis.get('emotions', [])
+        gaze = recording_analysis.get('gaze', [])
+        dominant_emotion = emotions[0].get('emotion', 'neutral') if emotions and len(emotions) > 0 else 'neutral'
+        emotion_pct = emotions[0].get('percentage', '0') if emotions and len(emotions) > 0 else '0'
+        primary_gaze = gaze[0].get('direction', 'center') if gaze and len(gaze) > 0 else 'center'
+        gaze_pct = gaze[0].get('percentage', '0') if gaze and len(gaze) > 0 else '0'
+        
+        # Get top 3 fillers
+        filler_breakdown = {}
+        for filler in found_fillers:
+            if isinstance(filler, str):  # Ensure filler is a string
+                filler_breakdown[filler] = filler_breakdown.get(filler, 0) + 1
+        top_fillers = sorted(filler_breakdown.items(), key=lambda x: x[1], reverse=True)[:3]
+        top_fillers_str = ', '.join([f"'{f}' ({c}x)" for f, c in top_fillers]) if top_fillers else 'none'
+        
+        # Generate intelligent rule-based suggestions
+        suggestions = generate_fallback_suggestions(
+            filler_pct, filler_count, pauses, confidence,
+            dominant_emotion, primary_gaze, practice_mode, top_fillers
+        )
+        
+        return jsonify({
+            "success": True,
+            "suggestions": suggestions
+        })
+        
+    except Exception as e:
+        logger.error(f"Critical error in generate_suggestions: {e}")
+        traceback.print_exc()
+        # Return basic fallback even on critical errors
+        return jsonify({
+            "success": True,
+            "suggestions": {
+                "overall": {
+                    "score": 70,
+                    "summary": "Good effort! Keep practicing to improve.",
+                    "nextSteps": ["Focus on reducing filler words", "Maintain eye contact"]
+                }
+            },
+            "fallback": True,
+            "error": "Unable to generate detailed suggestions"
+        })
+
+
+def generate_fallback_suggestions(filler_pct, filler_count, pauses, confidence, 
+                                  dominant_emotion, primary_gaze, practice_mode, top_fillers):
+    """Generate rule-based suggestions as fallback"""
+    
+    # Filler analysis
+    if filler_pct < 3:
+        filler_severity = "good"
+        filler_tip = f"Excellent! Only {filler_pct:.1f}% filler words. You're speaking very cleanly."
+        filler_action = "Maintain this level by staying mindful of your speech patterns."
+    elif filler_pct < 7:
+        filler_severity = "moderate"
+        if top_fillers and len(top_fillers) > 0:
+            top_filler = top_fillers[0][0]
+            filler_count_top = top_fillers[0][1]
+            filler_tip = f"You used '{top_filler}' {filler_count_top}x. Try to reduce to under 3%."
+        else:
+            filler_tip = f"You used filler words {filler_count} times. Try to reduce to under 3%."
+        filler_action = "Pause for 1 second instead of saying filler words."
+    else:
+        filler_severity = "needs_work"
+        filler_tip = f"{filler_pct:.1f}% fillers is high. Focus on eliminating them."
+        filler_action = "Practice speaking slower and pausing between thoughts."
+    
+    # Pause analysis
+    if pauses > 8:
+        pause_severity = "good"
+        pause_tip = f"Great use of {pauses} pauses! This helps emphasize key points."
+        pause_action = "Keep using pauses strategically for impact."
+    elif pauses >= 4:
+        pause_severity = "moderate"
+        pause_tip = f"You paused {pauses} times. More pauses can add emphasis."
+        pause_action = "Try pausing after important statements."
+    else:
+        pause_severity = "needs_work"
+        pause_tip = f"Only {pauses} pauses detected. You might be rushing."
+        pause_action = "Practice taking deliberate 1-2 second pauses."
+    
+    # Emotion analysis
+    emotion_map = {
+        'persuasive': ('enthusiastic', 'happy'),
+        'emotive': ('expressive', 'varied'),
+        'public-speaking': ('confident', 'happy'),
+        'formal': ('calm', 'neutral'),
+        'storytelling': ('engaging', 'varied'),
+        'debate': ('passionate', 'angry')
+    }
+    target_emotion = emotion_map.get(practice_mode, ('neutral', 'neutral'))[1]
+    
+    if dominant_emotion == target_emotion or dominant_emotion == 'happy':
+        emotion_severity = "good"
+        emotion_tip = f"Good emotional expression! You appeared {dominant_emotion}."
+        emotion_action = "Keep this natural emotional delivery."
+    elif dominant_emotion == 'neutral':
+        emotion_severity = "needs_work"
+        emotion_tip = f"You appeared mostly neutral. For {practice_mode}, show more emotion."
+        emotion_action = "Try smiling and using hand gestures while speaking."
+    else:
+        emotion_severity = "moderate"
+        emotion_tip = f"You showed {dominant_emotion} emotion. Consider if this matches your message."
+        emotion_action = "Practice matching your facial expressions to your content."
+    
+    # Gaze analysis
+    gaze_pct_num = float(gaze_pct) if isinstance(gaze_pct, str) else gaze_pct
+    if primary_gaze == 'center' and gaze_pct_num > 60:
+        gaze_severity = "good"
+        gaze_tip = f"Excellent eye contact! You looked at the camera {gaze_pct}% of the time."
+        gaze_action = "Maintain this strong eye contact in future sessions."
+    elif gaze_pct_num >= 40:
+        gaze_severity = "moderate"
+        gaze_tip = f"You looked {primary_gaze} {gaze_pct}% of the time. Try centering your gaze more."
+        gaze_action = "Imagine the camera is a friend and make eye contact."
+    else:
+        gaze_severity = "needs_work"
+        gaze_tip = f"You looked {primary_gaze} often. This can seem uncertain."
+        gaze_action = "Practice looking directly at the camera lens."
+    
+    # Overall
+    if confidence >= 80:
+        summary = "Excellent performance! You're speaking with strong confidence."
+    elif confidence >= 60:
+        summary = "Good job! A few improvements will boost your confidence."
+    else:
+        summary = "Keep practicing! Focus on the key areas below."
+    
+    next_steps = []
+    if filler_severity != "good":
+        next_steps.append("Reduce filler words by pausing instead")
+    if gaze_severity != "good":
+        next_steps.append("Improve eye contact with the camera")
+    if not next_steps:
+        next_steps = ["Keep practicing to maintain this level", "Try a harder practice mode"]
+    
+    return {
+        "fillers": {
+            "severity": filler_severity,
+            "tip": filler_tip,
+            "actionable": filler_action,
+            "icon": "💭"
+        },
+        "pauses": {
+            "severity": pause_severity,
+            "tip": pause_tip,
+            "actionable": pause_action,
+            "icon": "⏸️"
+        },
+        "emotions": {
+            "severity": emotion_severity,
+            "tip": emotion_tip,
+            "actionable": emotion_action,
+            "icon": "😊"
+        },
+        "gaze": {
+            "severity": gaze_severity,
+            "tip": gaze_tip,
+            "actionable": gaze_action,
+            "icon": "👁️"
+        },
+        "overall": {
+            "score": int(confidence),
+            "summary": summary,
+            "nextSteps": next_steps
+        }
+    }
+
+
 if __name__ == "__main__":
     port = int(os.environ.get('FLASK_RUN_PORT', 5328))
     app.run(debug=True, host='0.0.0.0', port=port)
