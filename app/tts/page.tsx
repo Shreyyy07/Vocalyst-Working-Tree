@@ -5,6 +5,7 @@
 // export default function TTSPage() {
 //   const [text, setText] = useState("");
 //   const [voices, setVoices] = useState<any[]>([]);
+
 //   const [selectedVoice, setSelectedVoice] = useState("");
 //   const [isLoading, setIsLoading] = useState(false);
 
@@ -156,28 +157,20 @@ import FloatingPoints from "@/components/ui/FloatingPoints";
 
 export default function TTSPage() {
   const [text, setText] = useState("");
-  const [selectedVoice, setSelectedVoice] = useState("default");
-  const [selectedAccent, setSelectedAccent] = useState("neutral");
+  const [selectedVoice, setSelectedVoice] = useState("rachel");
   const [isLoading, setIsLoading] = useState(false);
   const [speed, setSpeed] = useState([1.0]);
 
-  // Accent options
-  const accents = [
-    { id: "neutral", name: "Neutral", flag: "🌐" },
-    { id: "american", name: "American", flag: "🇺🇸" },
-    { id: "british", name: "British", flag: "🇬🇧" },
-    { id: "australian", name: "Australian", flag: "🇦🇺" },
-    { id: "indian", name: "Indian", flag: "🇮🇳" },
-    { id: "canadian", name: "Canadian", flag: "🇨🇦" },
-    { id: "irish", name: "Irish", flag: "🇮🇪" },
-    { id: "scottish", name: "Scottish", flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿" },
-  ];
-
-  // Neuphonic uses default voices - simplified options
+  // ElevenLabs voices - 8 high-quality options
   const voices = [
-    { voice_id: "default", name: "Default Voice", accent: "Neutral" },
-    { voice_id: "calm", name: "Calm Voice", accent: "Professional" },
-    { voice_id: "energetic", name: "Energetic Voice", accent: "Dynamic" },
+    { voice_id: "rachel", name: "Rachel", accent: "Female, American", description: "Clear & professional" },
+    { voice_id: "bella", name: "Bella", accent: "Female, Soft", description: "Calm & soothing" },
+    { voice_id: "antoni", name: "Antoni", accent: "Male, Energetic", description: "Dynamic & engaging" },
+    { voice_id: "josh", name: "Josh", accent: "Male, American", description: "Professional" },
+    { voice_id: "charlotte", name: "Charlotte", accent: "Female, British", description: "British accent" },
+    { voice_id: "nicole", name: "Nicole", accent: "Female, Australian", description: "Australian accent" },
+    { voice_id: "adam", name: "Adam", accent: "Male, American", description: "Deep & authoritative" },
+    { voice_id: "default", name: "Default", accent: "Female, American", description: "Rachel (default)" },
   ];
 
   const generateSpeech = async (e: React.FormEvent) => {
@@ -195,8 +188,7 @@ export default function TTSPage() {
 
       const requestBody = {
         text,
-        voice: selectedVoice || "default",
-        accent: selectedAccent,
+        voice: selectedVoice || "rachel",
         speed: speed[0],
       };
 
@@ -249,31 +241,16 @@ export default function TTSPage() {
         <div className="max-w-3xl mx-auto bg-transparent border border-white/20 rounded-2xl shadow-xl p-8 space-y-8">
           <form onSubmit={generateSpeech} className="space-y-6">
             <div>
-              <label className="block text-sm font-semibold mb-1">Accent Selection</label>
-              <Select value={selectedAccent} onValueChange={setSelectedAccent}>
-                <SelectTrigger className="bg-white/10 border border-white/20">
-                  <SelectValue placeholder="Select accent" />
-                </SelectTrigger>
-                <SelectContent className="bg-black border border-white/20">
-                  {accents.map((accent) => (
-                    <SelectItem key={accent.id} value={accent.id} className="hover:bg-white/10">
-                      {accent.flag} {accent.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-semibold mb-1">Voice Selection</label>
+              <label className="block text-sm font-semibold mb-2 text-cyan-300">Voice Selection</label>
+              <p className="text-xs text-white/60 mb-2">Choose from 8 high-quality ElevenLabs AI voices</p>
               <Select value={selectedVoice} onValueChange={setSelectedVoice}>
-                <SelectTrigger className="bg-white/10 border border-white/20">
+                <SelectTrigger className="bg-white/10 border border-white/20 hover:bg-white/15 transition">
                   <SelectValue placeholder="Select voice" />
                 </SelectTrigger>
                 <SelectContent className="bg-black border border-white/20">
                   {voices.map((voice) => (
                     <SelectItem key={voice.voice_id} value={voice.voice_id} className="hover:bg-white/10">
-                      {voice.name} ({voice.accent})
+                      {voice.name} - {voice.accent}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -281,13 +258,14 @@ export default function TTSPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-semibold mb-1">Speech Speed</label>
+              <label className="block text-sm font-semibold mb-2 text-purple-300">Speech Speed</label>
               <Slider
                 value={speed}
                 onValueChange={setSpeed}
                 min={0.5}
                 max={1.5}
                 step={0.1}
+                className="mb-2"
               />
               <p className="text-sm text-center text-purple-300 mt-1">{speed[0].toFixed(1)}x</p>
             </div>
