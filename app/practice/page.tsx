@@ -311,11 +311,14 @@ export default function PracticePage() {
       ? sortedGaze
       : [{ direction: 'center', percentage: '100.0' }];
 
-    setRecordingAnalysis({
+    const analysisData = {
       emotions: finalEmotions as any,
       gaze: finalGaze as any,
       duration: duration
-    });
+    };
+
+    setRecordingAnalysis(analysisData);
+    return analysisData; // Return the data for immediate use
   };
 
   // --- Camera & Recording Logic ---
@@ -390,6 +393,9 @@ export default function PracticePage() {
   };
 
   const handleRecordingStop = async () => {
+    // Capture duration BEFORE any state changes
+    const capturedDuration = recordingDuration;
+
     const videoBlob = new Blob(chunksRef.current, { type: 'video/mp4' });
     const formData = new FormData();
     formData.append("video", videoBlob, "practice_recording.mp4");
@@ -406,11 +412,11 @@ export default function PracticePage() {
       if (result.has_audio) {
         setUploadedAudio(result.audio_filename);
 
-        // Process collected LOCAL data for emotions (fixing the "not reflecting" issue)
-        processLocalAnalysisData(recordingDuration);
+        // Process collected LOCAL data for emotions and get the data immediately
+        const recordingData = processLocalAnalysisData(capturedDuration);
 
         setView('results');
-        processAnalysis(result.audio_filename);
+        processAnalysis(result.audio_filename, recordingData, capturedDuration);
       } else {
         alert("No audio detected in recording.");
       }
@@ -422,7 +428,7 @@ export default function PracticePage() {
     }
   };
 
-  const processAnalysis = async (audioVarsFilename: string) => {
+  const processAnalysis = async (audioVarsFilename: string, recordingData?: RecordingAnalysis, capturedDuration?: number) => {
     setIsTranscribing(true);
     try {
       // Transcription
@@ -439,6 +445,9 @@ export default function PracticePage() {
 
       setTranscription(txResult.text || "No speech detected.");
       setAnalysis(txResult.analysis);
+
+      // Save session to backend for analytics (pass recordingData and duration directly)
+      saveSession(txResult.text || "", txResult.analysis, recordingData, capturedDuration);
 
       // We do NOT overwrite recordingAnalysis here anymore, 
       // because processLocalAnalysisData already set the definitive emotions/gaze.
@@ -464,6 +473,50 @@ export default function PracticePage() {
     } finally {
       setIsTranscribing(false);
       // setIsEnhancing(false);
+    }
+  };
+
+  const saveSession = async (transcriptionText: string, analysisData: Analysis | null, recordingData?: RecordingAnalysis, capturedDuration?: number) => {
+    try {
+    
+      if (!analysisData) {
+      console.warn("Cannot save session: missing analysis data"); 
+      return;
+    }
+
+      // Use passed recordingData or fall back to state
+      const finalRecordingData = recordingData || recordingAnalysis;
+
+      if (!finalRecordingData) {
+        console.warn("Cannot save session: missing recording analysis data");
+        return;
+      }
+
+      const sessionData = {
+        duration: capturedDuration || recordingDuration,
+        practiceMode: selectedMode?.id || 'general',
+        analysis: analysisData,
+        recordingAnalysis: finalRecordingData,
+        transcription: transcriptionText
+      };
+
+      console.log('Saving session:', sessionData); // Debug log
+
+      const response = await fetch('http://localhost:5328/api/save-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(sessionData)
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Session saved successfully:', result.sessionId);
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Failed to save session:', response.status, errorText);
+      }
+    } catch (error) {
+      console.error('❌ Error saving session:', error);
     }
   };
 
@@ -630,3 +683,4 @@ export default function PracticePage() {
 
   return null;
 }
+

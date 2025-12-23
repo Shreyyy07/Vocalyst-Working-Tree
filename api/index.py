@@ -1928,6 +1928,248 @@ def generate_fallback_suggestions(filler_pct, filler_count, pauses, confidence,
     }
 
 
+# ============================================================================
+# ANALYTICS ENDPOINTS - Session Tracking & Data Persistence
+# ============================================================================
+
+import uuid
+from datetime import datetime
+
+SESSIONS_FILE = os.path.join(script_dir, 'data', 'sessions.json')
+
+def read_sessions():
+    """Safely read sessions from JSON file"""
+    try:
+        if not os.path.exists(SESSIONS_FILE):
+            return {"sessions": []}
+        
+        with open(SESSIONS_FILE, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+            return data if isinstance(data, dict) and 'sessions' in data else {"sessions": []}
+    except (json.JSONDecodeError, IOError) as e:
+        logger.error(f"Error reading sessions file: {e}")
+        return {"sessions": []}
+
+def write_sessions(data):
+    """Safely write sessions to JSON file with locking"""
+    try:
+        os.makedirs(os.path.dirname(SESSIONS_FILE), exist_ok=True)
+        
+        # Write to temporary file first
+        temp_file = SESSIONS_FILE + '.tmp'
+        with open(temp_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        
+        # Atomic rename
+        if os.path.exists(SESSIONS_FILE):
+            os.replace(temp_file, SESSIONS_FILE)
+        else:
+            os.rename(temp_file, SESSIONS_FILE)
+        
+        return True
+    except Exception as e:
+        logger.error(f"Error writing sessions file: {e}")
+        return False
+
+@app.route("/api/save-session", methods=['POST', 'OPTIONS'])
+def save_session():
+    """Save a practice session to the database"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    try:
+        data = request.json
+        
+        # Validate required fields
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+        
+        required_fields = ['analysis', 'recordingAnalysis']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"Missing required field: {field}"}), 400
+        
+        # Create session object
+        session = {
+            "id": str(uuid.uuid4()),
+            "timestamp": datetime.utcnow().isoformat() + 'Z',
+            "duration": data.get('duration', 0),
+            "practiceMode": data.get('practiceMode', 'general'),
+            "analysis": data.get('analysis', {}),
+            "recordingAnalysis": data.get('recordingAnalysis', {}),
+            "transcription": data.get('transcription', '')
+        }
+        
+        # Read existing sessions
+        sessions_data = read_sessions()
+        
+        # Append new session
+        sessions_data['sessions'].append(session)
+        
+        # Limit to last 100 sessions to prevent file bloat
+        if len(sessions_data['sessions']) > 100:
+            sessions_data['sessions'] = sessions_data['sessions'][-100:]
+        
+        # Write back to file
+        if write_sessions(sessions_data):
+            logger.info(f"Session saved successfully: {session['id']}")
+            return jsonify({
+                "success": True,
+                "sessionId": session['id'],
+                "message": "Session saved successfully"
+            })
+        else:
+            return jsonify({"error": "Failed to save session"}), 500
+            
+    except Exception as e:
+        logger.error(f"Error saving session: {e}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/get-analytics", methods=['GET', 'OPTIONS'])
+def get_analytics():
+    """Get aggregated analytics from all sessions"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    try:
+        sessions_data = read_sessions()
+        sessions = sessions_data.get('sessions', [])
+        
+        if not sessions:
+            return jsonify({
+                "success": True,
+                "analytics": {
+                    "totalSessions": 0,
+                    "totalDuration": 0,
+                    "averageEmotions": [],
+                    "averageGazeDirections": [],
+                    "averageFillerWords": 0,
+                    "averageVocabularyScore": 0,
+                    "averageLogicalFlow": 0,
+                    "recentSessions": []
+                }
+            })
+        
+        # Aggregate data
+        total_duration = 0
+        emotion_counts = {}
+        gaze_counts = {}
+        filler_percentages = []
+        vocab_scores = []
+        flow_scores = []
+        practice_mode_counts = {}
+        
+        for session in sessions:
+            # Duration
+            total_duration += session.get('duration', 0)
+            
+            # Practice modes
+            practice_mode = session.get('practiceMode', 'general')
+            if practice_mode in practice_mode_counts:
+                practice_mode_counts[practice_mode] += 1
+            else:
+                practice_mode_counts[practice_mode] = 1
+            
+            # Emotions
+            emotions = session.get('recordingAnalysis', {}).get('emotions', [])
+            for emotion_entry in emotions:
+                emotion = emotion_entry.get('emotion', 'neutral')
+                percentage = float(emotion_entry.get('percentage', 0))
+                if emotion in emotion_counts:
+                    emotion_counts[emotion].append(percentage)
+                else:
+                    emotion_counts[emotion] = [percentage]
+            
+            # Gaze
+            gaze = session.get('recordingAnalysis', {}).get('gaze', [])
+            for gaze_entry in gaze:
+                direction = gaze_entry.get('direction', 'center')
+                percentage = float(gaze_entry.get('percentage', 0))
+                if direction in gaze_counts:
+                    gaze_counts[direction].append(percentage)
+                else:
+                    gaze_counts[direction] = [percentage]
+            
+            # Speech metrics
+            analysis = session.get('analysis', {})
+            if 'filler_percentage' in analysis:
+                filler_percentages.append(float(analysis['filler_percentage']))
+            
+            speaking_metrics = analysis.get('speaking_metrics', {})
+            if 'confidence_score' in speaking_metrics:
+                vocab_scores.append(float(speaking_metrics['confidence_score']))
+        
+        # Calculate averages
+        avg_emotions = [
+            {
+                "emotion": emotion,
+                "percentage": sum(percentages) / len(percentages)
+            }
+            for emotion, percentages in emotion_counts.items()
+        ]
+        avg_emotions.sort(key=lambda x: x['percentage'], reverse=True)
+        
+        avg_gaze = [
+            {
+                "direction": direction,
+                "percentage": sum(percentages) / len(percentages)
+            }
+            for direction, percentages in gaze_counts.items()
+        ]
+        avg_gaze.sort(key=lambda x: x['percentage'], reverse=True)
+        
+        avg_filler = sum(filler_percentages) / len(filler_percentages) if filler_percentages else 0
+        avg_vocab = sum(vocab_scores) / len(vocab_scores) if vocab_scores else 0
+        avg_flow = avg_vocab  # Using confidence as flow score
+        
+        # Get recent sessions (last 10)
+        recent_sessions = [
+            {
+                "id": s['id'],
+                "timestamp": s['timestamp'],
+                "practiceMode": s.get('practiceMode', 'general'),
+                "duration": s.get('duration', 0),
+                "fillerPercentage": s.get('analysis', {}).get('filler_percentage', 0)
+            }
+            for s in sessions[-10:]
+        ]
+        recent_sessions.reverse()  # Most recent first
+        
+        # Practice modes breakdown
+        practice_modes = [
+            {
+                "mode": mode,
+                "count": count
+            }
+            for mode, count in practice_mode_counts.items()
+        ]
+        practice_modes.sort(key=lambda x: x['count'], reverse=True)
+        
+        analytics = {
+            "totalSessions": len(sessions),
+            "totalDuration": total_duration,
+            "averageEmotions": avg_emotions[:5],  # Top 5 emotions
+            "averageGazeDirections": avg_gaze,
+            "averageFillerWords": round(avg_filler, 2),
+            "averageVocabularyScore": round(avg_vocab, 2),
+            "averageLogicalFlow": round(avg_flow, 2),
+            "practiceModes": practice_modes,
+            "recentSessions": recent_sessions
+        }
+        
+        return jsonify({
+            "success": True,
+            "analytics": analytics
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting analytics: {e}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+
+
 if __name__ == "__main__":
     port = int(os.environ.get('FLASK_RUN_PORT', 5328))
     app.run(debug=True, host='0.0.0.0', port=port)

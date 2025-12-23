@@ -5,68 +5,30 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
-  TrendingUp, AlertCircle, Zap, Activity, MessageSquare, Mic, User,
-  Trophy, Flame, Target, ArrowRight, Calendar
+  TrendingUp, AlertCircle, Zap, Activity, MessageSquare, Mic,
+  Trophy, Flame, Target, Eye
 } from "lucide-react";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar
 } from "recharts";
+import dynamic from "next/dynamic";
+import { useEffect, useState } from "react";
 
-// Mock data to simulate AI analysis
-const mockAnalysis = {
-  archetype: {
-    title: "The Diplomat",
-    description: "You speak with empathy and clarity, making you excellent at resolving conflicts and building rapport.",
-    traits: ["Empathetic", "Clear", "Balanced"],
-    icon: "🤝"
-  },
-  gamification: {
-    level: 5,
-    title: "Orator",
-    currentXp: 750,
-    nextLevelXp: 1000,
-    streak: 4,
-    totalSessions: 23
-  },
-  metrics: {
-    clarity: 85,
-    wpm: 145,
-    fillerWords: 2.1, // percentage
-    eyeContact: 78 // percentage
-  },
-  strengths: [
-    "Excellent tonal variety keeps listeners engaged",
-    "Strong vocabulary usage in formal contexts",
-    "Great pacing - not too fast, not too slow"
-  ],
-  weaknesses: [
-    "Tendency to look away during complex explanations",
-    "Occasional use of 'um' and 'like' as fillers",
-    "Volume drops slightly at the end of sentences"
-  ],
-  recentSessions: [
-    { id: 1, date: "Today", mode: "Public Speaking", score: 92 },
-    { id: 2, date: "Yesterday", mode: "Persuasive", score: 88 },
-    { id: 3, date: "2 days ago", mode: "Formal", score: 75 },
-    { id: 4, date: "3 days ago", mode: "Storytelling", score: 82 },
-    { id: 5, date: "5 days ago", mode: "Debate", score: 70 },
-  ],
-  progressData: [
-    { session: '1', score: 65, clarity: 70 },
-    { session: '2', score: 68, clarity: 72 },
-    { session: '3', score: 75, clarity: 75 },
-    { session: '4', score: 72, clarity: 74 },
-    { session: '5', score: 82, clarity: 80 },
-    { session: '6', score: 88, clarity: 85 },
-    { session: '7', score: 92, clarity: 88 },
-  ],
-  recommendedExercise: {
-    title: "The 'Like' Detox",
-    description: "Your filler word usage is slightly up. Try to speak for 60 seconds about your favorite hobby without saying 'like' or 'um'.",
-    difficulty: "Medium",
-    duration: "2 mins"
-  }
-};
+const FloatingPointsCanvas = dynamic(
+  () => import("@/components/ui/FloatingPoints"),
+  { ssr: false }
+);
+
+interface AggregatedAnalytics {
+  totalSessions: number;
+  totalDuration: number;
+  averageEmotions: { emotion: string; percentage: number }[];
+  averageGazeDirections: { direction: string; percentage: number }[];
+  averageFillerWords: number;
+  averageVocabularyScore: number;
+  recentSessions?: any[];
+}
 
 const fadeIn = {
   hidden: { opacity: 0, y: 20 },
@@ -82,11 +44,131 @@ const stagger = {
 };
 
 export default function GetInsightsPage() {
-  return (
-    <div className="min-h-screen bg-black text-white pt-24 pb-12 px-6">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/20 via-black to-black -z-10" />
+  const [analytics, setAnalytics] = useState<AggregatedAnalytics | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-      <div className="max-w-7xl mx-auto space-y-8">
+  useEffect(() => {
+    fetchAnalytics();
+  }, []);
+
+  const fetchAnalytics = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch('http://localhost:5328/api/get-analytics');
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.analytics) {
+        setAnalytics(data.analytics);
+      } else {
+        throw new Error('Invalid response format');
+      }
+    } catch (err) {
+      console.error('Failed to fetch analytics:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load analytics');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const formatDuration = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  };
+
+  // Calculate level based on total sessions
+  const calculateLevel = (sessions: number) => {
+    return Math.floor(sessions / 5) + 1;
+  };
+
+  const calculateXP = (sessions: number) => {
+    const level = calculateLevel(sessions);
+    const sessionsInCurrentLevel = sessions % 5;
+    return {
+      current: sessionsInCurrentLevel * 200,
+      next: 1000,
+      level,
+      title: level >= 5 ? "Expert" : level >= 3 ? "Intermediate" : "Beginner"
+    };
+  };
+
+  if (isLoading) {
+    return (
+      <div className="relative min-h-screen bg-black text-white">
+        <div className="fixed inset-0 z-0">
+          <FloatingPointsCanvas />
+        </div>
+        <div className="relative z-10 flex items-center justify-center min-h-screen">
+          <div className="text-center">
+            <div className="animate-spin text-6xl mb-4">🎯</div>
+            <p className="text-xl text-gray-400">Loading your insights...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !analytics) {
+    return (
+      <div className="relative min-h-screen bg-black text-white">
+        <div className="fixed inset-0 z-0">
+          <FloatingPointsCanvas />
+        </div>
+        <div className="relative z-10 flex items-center justify-center min-h-screen">
+          <div className="text-center space-y-4">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto" />
+            <h2 className="text-2xl font-bold">Failed to Load Insights</h2>
+            <p className="text-gray-400">{error}</p>
+            <button
+              onClick={fetchAnalytics}
+              className="px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary/90"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (analytics.totalSessions === 0) {
+    return (
+      <div className="relative min-h-screen bg-black text-white">
+        <div className="fixed inset-0 z-0">
+          <FloatingPointsCanvas />
+        </div>
+        <div className="relative z-10 flex items-center justify-center min-h-screen">
+          <div className="text-center space-y-4">
+            <Target className="w-16 h-16 text-blue-500 mx-auto" />
+            <h2 className="text-2xl font-bold">No Practice Sessions Yet</h2>
+            <p className="text-gray-400">Complete your first practice session to see insights!</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const gamification = calculateXP(analytics.totalSessions);
+
+  return (
+    <div className="relative min-h-screen bg-black text-white pt-24 pb-12 px-6">
+      <div className="fixed inset-0 z-0">
+        <FloatingPointsCanvas />
+      </div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-blue-900/10 via-transparent to-transparent z-[1] pointer-events-none" />
+
+      <div className="relative z-10 max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <motion.div
           initial="hidden"
@@ -98,45 +180,42 @@ export default function GetInsightsPage() {
             Your Communication Profile
           </h1>
           <p className="text-xl text-gray-400 max-w-2xl mx-auto">
-            AI-powered analysis of your speaking style, strengths, and areas for growth.
+            Real-time analysis of your speaking performance and progress
           </p>
         </motion.div>
 
-        {/* Top Section: Archetype + Gamification */}
+        {/* Top Section: Stats + Gamification */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Archetype Card (2 Columns) */}
+          {/* Stats Card (2 Columns) */}
           <motion.div
             initial="hidden"
             animate="visible"
             variants={fadeIn}
             className="lg:col-span-2"
           >
-            <Card className="h-full bg-gradient-to-br from-gray-900 to-black border-2 border-purple-500/30 overflow-hidden relative">
-              <div className="absolute top-0 right-0 p-8 opacity-10 text-9xl">
-                {mockAnalysis.archetype.icon}
-              </div>
-              <CardContent className="p-8 flex flex-col md:flex-row items-center gap-8 relative z-10 h-full">
-                <div className="flex-shrink-0">
-                  <div className="h-32 w-32 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 p-[3px] shadow-[0_0_50px_rgba(168,85,247,0.4)]">
-                    <div className="h-full w-full rounded-full bg-black flex items-center justify-center text-5xl">
-                      {mockAnalysis.archetype.icon}
-                    </div>
+            <Card className="h-full bg-gradient-to-br from-gray-900/80 to-black/80 border-2 border-purple-500/30 backdrop-blur-md">
+              <CardContent className="p-8">
+                <h2 className="text-2xl font-bold mb-6 text-purple-400">Your Progress</h2>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-white/5 rounded-lg p-4 text-center backdrop-blur-sm">
+                    <Mic className="text-blue-500 h-8 w-8 mx-auto mb-2" />
+                    <div className="text-3xl font-bold text-white">{analytics.totalSessions}</div>
+                    <div className="text-sm text-gray-400">Sessions</div>
                   </div>
-                </div>
-                <div className="space-y-4 flex-1 text-center md:text-left">
-                  <div className="space-y-1">
-                    <h2 className="text-sm font-medium text-purple-400 uppercase tracking-widest">Communication Archetype</h2>
-                    <h3 className="text-3xl font-bold text-white">{mockAnalysis.archetype.title}</h3>
+                  <div className="bg-white/5 rounded-lg p-4 text-center backdrop-blur-sm">
+                    <Activity className="text-green-500 h-8 w-8 mx-auto mb-2" />
+                    <div className="text-3xl font-bold text-white">{formatDuration(analytics.totalDuration)}</div>
+                    <div className="text-sm text-gray-400">Practice Time</div>
                   </div>
-                  <p className="text-gray-300 leading-relaxed">
-                    {mockAnalysis.archetype.description}
-                  </p>
-                  <div className="flex flex-wrap justify-center md:justify-start gap-2 pt-2">
-                    {mockAnalysis.archetype.traits.map(trait => (
-                      <Badge key={trait} variant="secondary" className="px-3 py-1 text-xs bg-white/10 hover:bg-white/20 border-0">
-                        {trait}
-                      </Badge>
-                    ))}
+                  <div className="bg-white/5 rounded-lg p-4 text-center backdrop-blur-sm">
+                    <MessageSquare className="text-yellow-500 h-8 w-8 mx-auto mb-2" />
+                    <div className="text-3xl font-bold text-white">{analytics.averageFillerWords.toFixed(1)}%</div>
+                    <div className="text-sm text-gray-400">Avg Fillers</div>
+                  </div>
+                  <div className="bg-white/5 rounded-lg p-4 text-center backdrop-blur-sm">
+                    <Zap className="text-purple-500 h-8 w-8 mx-auto mb-2" />
+                    <div className="text-3xl font-bold text-white">{analytics.averageVocabularyScore.toFixed(0)}</div>
+                    <div className="text-sm text-gray-400">Clarity Score</div>
                   </div>
                 </div>
               </CardContent>
@@ -150,33 +229,33 @@ export default function GetInsightsPage() {
             variants={fadeIn}
             transition={{ delay: 0.1 }}
           >
-            <Card className="h-full bg-gray-900/40 border-white/10 flex flex-col justify-center">
+            <Card className="h-full bg-gray-900/80 border-white/10 backdrop-blur-md">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2">
-                  <Trophy className="text-yellow-500 h-5 w-5" /> Your Progress
+                  <Trophy className="text-yellow-500 h-5 w-5" /> Level Progress
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Level Progress */}
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-400">Level {mockAnalysis.gamification.level}: <span className="text-white font-semibold">{mockAnalysis.gamification.title}</span></span>
-                    <span className="text-gray-500">{mockAnalysis.gamification.currentXp} / {mockAnalysis.gamification.nextLevelXp} XP</span>
+                    <span className="text-gray-400">Level {gamification.level}: <span className="text-white font-semibold">{gamification.title}</span></span>
+                    <span className="text-gray-500">{gamification.current} / {gamification.next} XP</span>
                   </div>
-                  <Progress value={(mockAnalysis.gamification.currentXp / mockAnalysis.gamification.nextLevelXp) * 100} className="h-2 bg-gray-800" indicatorClassName="bg-gradient-to-r from-yellow-500 to-orange-500" />
+                  <Progress value={(gamification.current / gamification.next) * 100} className="h-2 bg-gray-800" />
                 </div>
 
                 {/* Grid stats */}
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white/5 rounded-lg p-3 text-center">
+                  <div className="bg-white/5 rounded-lg p-3 text-center backdrop-blur-sm">
                     <div className="flex justify-center mb-1"><Flame className="text-orange-500 h-6 w-6" /></div>
-                    <div className="text-2xl font-bold text-white">{mockAnalysis.gamification.streak}</div>
+                    <div className="text-2xl font-bold text-white">{Math.min(analytics.totalSessions, 7)}</div>
                     <div className="text-xs text-gray-400">Day Streak</div>
                   </div>
-                  <div className="bg-white/5 rounded-lg p-3 text-center">
-                    <div className="flex justify-center mb-1"><Mic className="text-blue-500 h-6 w-6" /></div>
-                    <div className="text-2xl font-bold text-white">{mockAnalysis.gamification.totalSessions}</div>
-                    <div className="text-xs text-gray-400">Sessions</div>
+                  <div className="bg-white/5 rounded-lg p-3 text-center backdrop-blur-sm">
+                    <div className="flex justify-center mb-1"><Target className="text-blue-500 h-6 w-6" /></div>
+                    <div className="text-2xl font-bold text-white">{analytics.totalSessions}</div>
+                    <div className="text-xs text-gray-400">Total</div>
                   </div>
                 </div>
               </CardContent>
@@ -184,186 +263,176 @@ export default function GetInsightsPage() {
           </motion.div>
         </div>
 
-        {/* Middle Section: Metrics Grid */}
+        {/* Metrics Grid */}
         <motion.div
           variants={stagger}
           initial="hidden"
           animate="visible"
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+          className="grid grid-cols-1 md:grid-cols-2 gap-6"
         >
-          {/* Clarity */}
+          {/* Emotional Expression */}
           <motion.div variants={fadeIn}>
-            <Card className="bg-gray-900/50 border-white/10 h-full hover:bg-gray-900/80 transition-colors group">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-gray-400">Clarity Score</CardTitle>
-                <Zap className="h-4 w-4 text-yellow-400 group-hover:scale-110 transition-transform" />
+            <Card className="bg-gray-900/80 border-white/10 backdrop-blur-md h-full">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  😊 Emotional Expression
+                </CardTitle>
+                <CardDescription>Your average emotional tone</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-white mb-2">{mockAnalysis.metrics.clarity}%</div>
-                <Progress value={mockAnalysis.metrics.clarity} className="h-1.5 bg-gray-800" indicatorClassName="bg-yellow-400" />
-                <p className="text-xs text-gray-500 mt-2">Top 15% of users</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* WPM */}
-          <motion.div variants={fadeIn}>
-            <Card className="bg-gray-900/50 border-white/10 h-full hover:bg-gray-900/80 transition-colors group">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-gray-400">Pace (WPM)</CardTitle>
-                <Activity className="h-4 w-4 text-blue-400 group-hover:scale-110 transition-transform" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-white mb-2">{mockAnalysis.metrics.wpm}</div>
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
-                    <div className="h-full bg-blue-400 w-3/4" />
-                  </div>
+                <div className="space-y-4">
+                  {analytics.averageEmotions.slice(0, 3).map((emotion) => (
+                    <div key={emotion.emotion} className="space-y-1.5">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="capitalize text-white">{emotion.emotion}</span>
+                        <span className="text-gray-400">{emotion.percentage.toFixed(1)}%</span>
+                      </div>
+                      <Progress
+                        value={emotion.percentage}
+                        max={100}
+                        className="h-2 bg-gray-800"
+                      />
+                    </div>
+                  ))}
                 </div>
-                <p className="text-xs text-gray-500 mt-2">Ideal range: 130-150</p>
               </CardContent>
             </Card>
           </motion.div>
 
-          {/* Filler Words */}
+          {/* Gaze Patterns */}
           <motion.div variants={fadeIn}>
-            <Card className="bg-gray-900/50 border-white/10 h-full hover:bg-gray-900/80 transition-colors group">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-gray-400">Filler Words</CardTitle>
-                <MessageSquare className="h-4 w-4 text-red-400 group-hover:scale-110 transition-transform" />
+            <Card className="bg-gray-900/80 border-white/10 backdrop-blur-md h-full">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="h-5 w-5" /> Gaze Patterns
+                </CardTitle>
+                <CardDescription>Where you look while speaking</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold text-white mb-2">{mockAnalysis.metrics.fillerWords}%</div>
-                <Progress value={mockAnalysis.metrics.fillerWords * 10} className="h-1.5 bg-gray-800" indicatorClassName="bg-red-400" />
-                <p className="text-xs text-gray-500 mt-2">Decreased by 0.5%</p>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Eye Contact */}
-          <motion.div variants={fadeIn}>
-            <Card className="bg-gray-900/50 border-white/10 h-full hover:bg-gray-900/80 transition-colors group">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium text-gray-400">Eye Contact</CardTitle>
-                <User className="h-4 w-4 text-green-400 group-hover:scale-110 transition-transform" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-3xl font-bold text-white mb-2">{mockAnalysis.metrics.eyeContact}%</div>
-                <Progress value={mockAnalysis.metrics.eyeContact} className="h-1.5 bg-gray-800" indicatorClassName="bg-green-400" />
-                <p className="text-xs text-gray-500 mt-2">Great engagement!</p>
+                <div className="h-[200px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={analytics.averageGazeDirections}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                      <XAxis dataKey="direction" stroke="#666" />
+                      <YAxis stroke="#666" />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#000', border: '1px solid #333', borderRadius: '8px' }}
+                        itemStyle={{ color: '#fff' }}
+                      />
+                      <Bar dataKey="percentage" fill="#8b5cf6" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
           </motion.div>
         </motion.div>
 
-        {/* Lower Section: Charts & Breakdown */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
-          {/* Progress Chart */}
+        {/* Recent Sessions */}
+        {analytics.recentSessions && analytics.recentSessions.length > 0 && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            whileInView={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
           >
-            <Card className="h-full bg-gray-900/30 border-white/10">
+            <Card className="bg-gray-900/80 border-white/10 backdrop-blur-md">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="text-purple-400" /> Improvement Trends
+                  <TrendingUp className="text-green-400" /> Recent Sessions
                 </CardTitle>
-                <CardDescription>Your overall score over the last 7 sessions</CardDescription>
+                <CardDescription>Your latest practice sessions</CardDescription>
               </CardHeader>
-              <CardContent className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={mockAnalysis.progressData}>
-                    <defs>
-                      <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#333" vertical={false} />
-                    <XAxis dataKey="session" stroke="#666" />
-                    <YAxis stroke="#666" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#000', border: '1px solid #333', borderRadius: '8px' }}
-                      itemStyle={{ color: '#fff' }}
-                    />
-                    <Area type="monotone" dataKey="score" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorScore)" strokeWidth={3} />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <CardContent>
+                <div className="space-y-3">
+                  {analytics.recentSessions.slice(0, 5).map((session, index) => (
+                    <div
+                      key={session.id || index}
+                      className="flex items-center justify-between p-4 bg-white/5 rounded-lg backdrop-blur-sm hover:bg-white/10 transition-colors"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-full bg-gradient-to-tr from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+                          {index + 1}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-white capitalize">
+                            {session.practiceMode.replace('-', ' ')}
+                          </div>
+                          <div className="text-sm text-gray-400">
+                            {new Date(session.timestamp).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-gray-400">Fillers</div>
+                        <div className="font-bold text-white">{session.fillerPercentage?.toFixed(1)}%</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </motion.div>
+        )}
 
-          {/* Recommended Exercise & Weaknesses */}
-          <div className="space-y-6">
+        {/* Insights */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="grid grid-cols-1 md:grid-cols-2 gap-6"
+        >
+          {/* Strengths */}
+          <Card className="bg-gradient-to-br from-green-900/30 to-black/80 border-green-500/30 backdrop-blur-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-green-400">
+                <TrendingUp className="h-5 w-5" /> Strengths
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {analytics.averageFillerWords < 5 && (
+                <div className="bg-green-500/10 border border-green-500/20 p-3 rounded-md text-sm text-green-100">
+                  Excellent filler word control - you speak clearly and confidently
+                </div>
+              )}
+              {analytics.averageVocabularyScore > 80 && (
+                <div className="bg-green-500/10 border border-green-500/20 p-3 rounded-md text-sm text-green-100">
+                  Strong vocabulary and clarity score - your message comes across well
+                </div>
+              )}
+              {analytics.totalSessions >= 5 && (
+                <div className="bg-green-500/10 border border-green-500/20 p-3 rounded-md text-sm text-green-100">
+                  Great consistency - you're building a strong practice habit
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-            {/* Daily Challenge Card */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-            >
-              <Card className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 border-blue-500/30">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-blue-300">
-                    <Target className="h-5 w-5" /> Recommended Practice
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex justify-between items-start mb-4">
-                    <div>
-                      <h3 className="text-xl font-bold text-white mb-2">{mockAnalysis.recommendedExercise.title}</h3>
-                      <p className="text-gray-300 text-sm">{mockAnalysis.recommendedExercise.description}</p>
-                    </div>
-                    <Badge className="bg-blue-500 hover:bg-blue-600">{mockAnalysis.recommendedExercise.difficulty}</Badge>
-                  </div>
-                  <div className="flex items-center justify-between mt-4">
-                    <span className="text-xs text-gray-400 flex items-center gap-1"><Calendar className="h-3 w-3" /> Daily Challenge</span>
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      className="px-4 py-2 bg-white text-black text-sm font-bold rounded-full flex items-center gap-2 hover:bg-gray-200 transition-colors"
-                    >
-                      Start Now <ArrowRight className="h-4 w-4" />
-                    </motion.button>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-
-            {/* Analysis Breakdown */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-              className="grid grid-cols-1 sm:grid-cols-2 gap-4"
-            >
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold flex items-center gap-2 text-gray-400">
-                  <TrendingUp className="text-green-400 h-4 w-4" /> Strengths
-                </h3>
-                {mockAnalysis.strengths.slice(0, 2).map((item, i) => (
-                  <div key={i} className="bg-green-500/10 border border-green-500/20 p-3 rounded-md text-xs text-green-100">
-                    {item}
-                  </div>
-                ))}
-              </div>
-              <div className="space-y-3">
-                <h3 className="text-sm font-semibold flex items-center gap-2 text-gray-400">
-                  <AlertCircle className="text-red-400 h-4 w-4" /> Areas to Focus
-                </h3>
-                {mockAnalysis.weaknesses.slice(0, 2).map((item, i) => (
-                  <div key={i} className="bg-red-500/10 border border-red-500/20 p-3 rounded-md text-xs text-red-100">
-                    {item}
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          </div>
-        </div>
-
+          {/* Areas to Focus */}
+          <Card className="bg-gradient-to-br from-orange-900/30 to-black/80 border-orange-500/30 backdrop-blur-md">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-orange-400">
+                <AlertCircle className="h-5 w-5" /> Areas to Focus
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {analytics.averageFillerWords > 5 && (
+                <div className="bg-orange-500/10 border border-orange-500/20 p-3 rounded-md text-sm text-orange-100">
+                  Try to reduce filler words by pausing instead of saying "um" or "like"
+                </div>
+              )}
+              {analytics.averageVocabularyScore < 70 && (
+                <div className="bg-orange-500/10 border border-orange-500/20 p-3 rounded-md text-sm text-orange-100">
+                  Work on clarity - practice speaking more slowly and enunciating
+                </div>
+              )}
+              {analytics.totalSessions < 5 && (
+                <div className="bg-orange-500/10 border border-orange-500/20 p-3 rounded-md text-sm text-orange-100">
+                  Keep practicing regularly to build confidence and track progress
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     </div>
   );

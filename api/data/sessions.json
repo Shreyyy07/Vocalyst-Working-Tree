@@ -1,0 +1,307 @@
+{
+  "sessions": [
+    {
+      "id": "0a86132c-ac49-4ada-aedd-4ab4b4422755",
+      "timestamp": "2025-12-23T12:38:04.331492Z",
+      "duration": 0,
+      "practiceMode": "emotive",
+      "analysis": {
+        "filler_count": 1,
+        "filler_emoji": "👍",
+        "filler_percentage": 5.26,
+        "found_fillers": [
+          "like"
+        ],
+        "speaking_metrics": {
+          "avg_word_length": 3.9,
+          "confidence_emoji": "💪",
+          "confidence_level": "High",
+          "confidence_score": 84.2,
+          "estimated_pauses": 1,
+          "unique_words": 17,
+          "vocabulary_richness": 89.5,
+          "word_count": 19
+        },
+        "total_words": 19,
+        "ttr_analysis": {
+          "diversity_level": "very high",
+          "emoji": "🌟",
+          "ttr": 94.74,
+          "unique_words": 18
+        }
+      },
+      "recordingAnalysis": {
+        "emotions": [
+          {
+            "emotion": "neutral",
+            "percentage": "44.3"
+          },
+          {
+            "emotion": "sad",
+            "percentage": "43.0"
+          },
+          {
+            "emotion": "angry",
+            "percentage": "10.6"
+          }
+        ],
+        "gaze": [
+          {
+            "direction": "center",
+            "percentage": "77.8"
+          },
+          {
+            "direction": "right",
+            "percentage": "22.2"
+          }
+        ],
+        "duration": 0
+      },
+      "transcription": "I was incredibly happy when I heard that it felt like a bit has been lifted off my shoulders."
+    },
+    {
+      "id": "0259f084-2ef2-4bff-9b44-610b8c3f13b4",
+      "timestamp": "2025-12-23T12:40:36.554800Z",
+      "duration": 0,
+      "practiceMode": "debate",
+      "analysis": {
+        "filler_count": 0,
+        "filler_emoji": "🎯",
+        "filler_percentage": 0,
+        "found_fillers": [],
+        "speaking_metrics": {
+          "avg_word_length": 6.3,
+          "confidence_emoji": "💪",
+          "confidence_level": "High",
+          "confidence_score": 100,
+          "estimated_pauses": 2,
+          "unique_words": 12,
+          "vocabulary_richness": 85.7,
+          "word_count": 14
+        },
+        "total_words": 14,
+        "ttr_analysis": {
+          "diversity_level": "very high",
+          "emoji": "🌟",
+          "ttr": 100,
+          "unique_words": 14
+        }
+      },
+      "recordingAnalysis": {
+        "emotions": [
+          {
+            "emotion": "neutral",
+            "percentage": "100.0"
+          }
+        ],
+        "gaze": [
+          {
+            "direction": "center",
+            "percentage": "100.0"
+          }
+        ],
+        "duration": 0
+      },
+      "transcription": "While I understand your point about economic growth, we must prioritize the environmental protection."
+    },
+    {
+      "id": "7dc41471-a5de-4809-a274-7447c73fc8a3",
+      "timestamp": "2025-12-23T12:53:31.804729Z",
+      "duration": 0,
+      "practiceMode": "public-speaking",
+      "analysis": {
+        "filler_count": 1,
+        "filler_emoji": "👍",
+        "filler_percentage": 3.03,
+        "found_fillers": [
+          "to"
+        ],
+        "speaking_metrics": {
+          "avg_word_length": 3.9,
+          "confidence_emoji": "💪",
+          "confidence_level": "High",
+          "confidence_score": 90.9,
+          "estimated_pauses": 3,
+          "unique_words": 23,
+          "vocabulary_richness": 69.7,
+          "word_count": 33
+        },
+        "total_words": 33,
+        "ttr_analysis": {
+          "diversity_level": "high",
+          "emoji": "✨",
+          "ttr": 75.76,
+          "unique_words": 25
+        }
+      },
+      "recordingAnalysis": {
+        "emotions": [
+          {
+            "emotion": "neutral",
+            "percentage": "100.0"
+          }
+        ],
+        "gaze": [
+          {
+            "direction": "center",
+            "percentage": "100.0"
+          }
+        ],
+        "duration": 0
+      },
+      "transcription": "Success is not measured by wealth but by the impact we have on the others. As we move forward in our careers, let us not forward to shift others up as we climb."
+    },
+    {
+      "id": "8fbb207c-e733-4be6-bf52-59deb19324c9",
+      "timestamp": "2025-12-23T13:00:03.609680Z",
+      "duration": 0,
+      "practiceMode": "debate",
+      "analysis": {
+        "filler_count": 1,
+        "filler_emoji": "👍",
+        "filler_percentage": 3.57,
+        "found_fillers": [
+          "to"
+        ],
+        "speaking_metrics": {
+          "avg_word_length": 4.6,
+          "confidence_emoji": "💪",
+          "confidence_level": "High",
+          "confidence_score": 89.3,
+          "estimated_pauses": 2,
+          "unique_words": 24,
+          "vocabulary_richness": 85.7,
+          "word_count": 28
+        },
+        "total_words": 28,
+        "ttr_analysis": {
+          "diversity_level": "very high",
+          "emoji": "🌟",
+          "ttr": 92.86,
+          "unique_words": 26
+        }
+      },
+      "recordingAnalysis": {
+        "emotions": [
+          {
+            "emotion": "neutral",
+            "percentage": "100.0"
+          }
+        ],
+        "gaze": [
+          {
+            "direction": "center",
+            "percentage": "100.0"
+          }
+        ],
+        "duration": 0
+      },
+      "transcription": "Social media has connected the world but it also create an echo chamber. We are using the ability to have civil discourage with those who disagree with us."
+    },
+    {
+      "id": "0d07cc8f-79f4-44b6-b783-4712353060d8",
+      "timestamp": "2025-12-23T18:04:40.464871Z",
+      "duration": 0,
+      "practiceMode": "public-speaking",
+      "analysis": {
+        "filler_count": 3,
+        "filler_emoji": "💭",
+        "filler_percentage": 11.11,
+        "found_fillers": [
+          "to",
+          "just",
+          "that is"
+        ],
+        "speaking_metrics": {
+          "avg_word_length": 4.9,
+          "confidence_emoji": "👍",
+          "confidence_level": "Good",
+          "confidence_score": 66.7,
+          "estimated_pauses": 3,
+          "unique_words": 22,
+          "vocabulary_richness": 81.5,
+          "word_count": 27
+        },
+        "total_words": 27,
+        "ttr_analysis": {
+          "diversity_level": "very high",
+          "emoji": "🌟",
+          "ttr": 92.59,
+          "unique_words": 25
+        }
+      },
+      "recordingAnalysis": {
+        "emotions": [
+          {
+            "emotion": "neutral",
+            "percentage": "100.0"
+          }
+        ],
+        "gaze": [
+          {
+            "direction": "center",
+            "percentage": "100.0"
+          }
+        ],
+        "duration": 0
+      },
+      "transcription": "Thank you for being here. Your presence demonstrates a commitment to change. Together we can build a world that is more just equitable and sustainable for all."
+    },
+    {
+      "id": "1b28b919-eb37-4e5e-a903-234e91093d37",
+      "timestamp": "2025-12-23T18:12:36.624552Z",
+      "duration": 0,
+      "practiceMode": "storytelling",
+      "analysis": {
+        "filler_count": 2,
+        "filler_emoji": "👍",
+        "filler_percentage": 5.71,
+        "found_fillers": [
+          "to",
+          "to"
+        ],
+        "speaking_metrics": {
+          "avg_word_length": 3.8,
+          "confidence_emoji": "💪",
+          "confidence_level": "High",
+          "confidence_score": 82.9,
+          "estimated_pauses": 3,
+          "unique_words": 25,
+          "vocabulary_richness": 71.4,
+          "word_count": 35
+        },
+        "total_words": 35,
+        "ttr_analysis": {
+          "diversity_level": "high",
+          "emoji": "✨",
+          "ttr": 77.14,
+          "unique_words": 27
+        }
+      },
+      "recordingAnalysis": {
+        "emotions": [
+          {
+            "emotion": "neutral",
+            "percentage": "42.8"
+          },
+          {
+            "emotion": "happy",
+            "percentage": "37.4"
+          },
+          {
+            "emotion": "surprise",
+            "percentage": "18.2"
+          }
+        ],
+        "gaze": [
+          {
+            "direction": "right",
+            "percentage": "100.0"
+          }
+        ],
+        "duration": 0
+      },
+      "transcription": "Once upon a time in a land far away, there lived a young girl with a secret. She could speak to the stars and they could whisper the secret of the universe back to her."
+    }
+  ]
+}
