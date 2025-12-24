@@ -1,1 +1,0 @@
-{"voice":"default","speed":1,"text":"Hello world, testing Google Gemini TTS"}
