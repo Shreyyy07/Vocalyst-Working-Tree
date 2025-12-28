@@ -1,0 +1,47 @@
+services:
+  # Backend Service (Flask API)
+  backend:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: vocalyst-backend
+    ports:
+      - "5328:5328"
+    volumes:
+      # Persist data
+      - ./api/data:/app/data
+      - ./api/uploads:/app/uploads
+      # Mount model files
+      - ./face_detection_yunet_2023mar.onnx:/app/face_detection_yunet_2023mar.onnx
+      - ./face_landmarker_v2_with_blendshapes.task:/app/face_landmarker_v2_with_blendshapes.task
+    environment:
+      - FLASK_ENV=production
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    networks:
+      - vocalyst-network
+
+  # Frontend Service (Next.js)
+  frontend:
+    build:
+      context: .
+      dockerfile: ./app/Dockerfile
+    container_name: vocalyst-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=http://localhost:5328
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - vocalyst-network
+
+networks:
+  vocalyst-network:
+    driver: bridge
+
+volumes:
+  api-data:
+  api-uploads:

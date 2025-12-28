@@ -61,3 +61,32 @@ api/models/
 
 # recordings
 uploads/
+
+# Docker
+docker-compose.override.yml
+.dockerignore
+
+# Session data and archives
+api/data/sessions.json
+api/data/archive/
+
+# Temporary files
+temp/
+api/temp/
+*.tmp
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Build artifacts
+dist/
+build/

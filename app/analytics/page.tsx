@@ -63,6 +63,7 @@ export default function AnalyticsPage() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     fetchAnalytics();
@@ -91,6 +92,35 @@ export default function AnalyticsPage() {
       setError(err instanceof Error ? err.message : 'Failed to load analytics');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleResetAnalytics = async () => {
+    if (!confirm('Are you sure you want to reset all analytics data? This will archive your current data and start fresh.')) {
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      const response = await fetch('http://localhost:5328/api/reset-analytics', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reset analytics');
+      }
+
+      // Refresh analytics data
+      await fetchAnalytics();
+      alert('Analytics data has been reset successfully!');
+    } catch (err) {
+      console.error('Failed to reset analytics:', err);
+      alert('Failed to reset analytics. Please try again.');
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -159,9 +189,18 @@ export default function AnalyticsPage() {
       <div className="fixed inset-0 z-0">
         <FloatingPointsCanvas />
       </div>
-      <div className="relative z-10 container py-8 space-y-8">
+      <div className="relative z-10 container py-8 pt-24 space-y-8">
         <div className="flex flex-col items-center">
-          <h1 className="text-4xl font-bold mb-2">Communication Analytics</h1>
+          <div className="flex items-center gap-4 mb-2">
+            <h1 className="text-4xl font-bold">Communication Analytics</h1>
+            <button
+              onClick={handleResetAnalytics}
+              disabled={isResetting}
+              className="px-4 py-2 bg-red-500/20 text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isResetting ? 'Resetting...' : 'Reset Analytics'}
+            </button>
+          </div>
           <p className="text-muted-foreground">
             Your speaking performance insights
           </p>

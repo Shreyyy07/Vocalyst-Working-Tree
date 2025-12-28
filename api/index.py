@@ -1997,7 +1997,12 @@ def save_session():
             "practiceMode": data.get('practiceMode', 'general'),
             "analysis": data.get('analysis', {}),
             "recordingAnalysis": data.get('recordingAnalysis', {}),
-            "transcription": data.get('transcription', '')
+            "transcription": data.get('transcription', ''),
+            "aiInsights": generate_ai_insights({
+                "analysis": data.get('analysis', {}),
+                "duration": data.get('duration', 0),
+                "practiceMode": data.get('practiceMode', 'general')
+            })
         }
         
         # Read existing sessions
@@ -2170,6 +2175,242 @@ def get_analytics():
 
 
 
+def generate_ai_insights(session_data):
+    """Generate dynamic AI-powered insights based on session performance"""
+    try:
+        import google.generativeai as genai
+        
+        # Get API key
+        api_key = os.getenv('GEMINI_API_KEY')
+        if not api_key:
+            return ["Practice regularly to improve your speaking skills.", 
+                    "Focus on reducing filler words for clearer communication.",
+                    "Maintain steady pacing throughout your speech."]
+        
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-pro')
+        
+        # Extract metrics
+        analysis = session_data.get('analysis', {})
+        wpm = analysis.get('words_per_minute', 0)
+        filler_pct = analysis.get('filler_percentage', 0)
+        clarity = analysis.get('clarity_score', 0)
+        duration = session_data.get('duration', 0)
+        practice_mode = session_data.get('practiceMode', 'general')
+        
+        # Create prompt
+        prompt = f"""You are a professional speech coach. Analyze this practice session and provide 3-5 specific, actionable insights.
+
+Session Details:
+- Practice Mode: {practice_mode}
+- Duration: {duration} seconds
+- Speaking Rate: {wpm} words per minute
+- Filler Words: {filler_pct}%
+- Clarity Score: {clarity}%
+
+Provide insights in this format:
+1. [Specific observation and actionable advice]
+2. [Specific observation and actionable advice]
+3. [Specific observation and actionable advice]
+
+Keep each insight concise (1-2 sentences) and actionable. Focus on what they did well and what to improve."""
+
+        response = model.generate_content(prompt)
+        insights_text = response.text.strip()
+        
+        # Parse insights into list
+        insights = []
+        for line in insights_text.split('\n'):
+            line = line.strip()
+            if line and (line[0].isdigit() or line.startswith('-') or line.startswith('•')):
+                # Remove numbering/bullets
+                clean_line = re.sub(r'^[\d\.\-\•\*]\s*', '', line)
+                if clean_line:
+                    insights.append(clean_line)
+        
+        return insights[:5] if insights else [
+            "Great job completing this practice session!",
+            "Keep practicing regularly to build confidence.",
+            "Focus on maintaining a steady pace."
+        ]
+        
+    except Exception as e:
+        logger.error(f"Error generating AI insights: {e}")
+        return [
+            "Practice regularly to improve your speaking skills.",
+            "Focus on reducing filler words for clearer communication.",
+            "Maintain steady pacing throughout your speech."
+        ]
+
+@app.route("/api/reset-analytics", methods=['POST', 'OPTIONS'])
+def reset_analytics():
+    """Reset all analytics data"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    try:
+        # Archive old data
+        sessions_data = read_sessions()
+        if sessions_data.get('sessions'):
+            # Create archive directory
+            archive_dir = os.path.join(os.path.dirname(SESSIONS_FILE), 'archive')
+            os.makedirs(archive_dir, exist_ok=True)
+            
+            # Save archive with timestamp
+            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            archive_file = os.path.join(archive_dir, f'sessions_archive_{timestamp}.json')
+            with open(archive_file, 'w', encoding='utf-8') as f:
+                json.dump(sessions_data, f, indent=2)
+        
+        # Reset sessions
+        write_sessions({"sessions": []})
+        
+        logger.info("Analytics data reset successfully")
+        return jsonify({
+            "success": True,
+            "message": "Analytics data reset successfully"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error resetting analytics: {e}")
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/get-insights", methods=['GET', 'OPTIONS'])
+def get_insights():
+    """Get enhanced insights with dynamic strengths and weaknesses"""
+    if request.method == 'OPTIONS':
+        return '', 204
+    
+    try:
+        sessions_data = read_sessions()
+        sessions = sessions_data.get('sessions', [])
+        
+        if not sessions:
+            return jsonify({
+                "success": True,
+                "insights": {
+                    "strengths": [],
+                    "weaknesses": [],
+                    "trends": {},
+                    "recommendations": []
+                }
+            })
+        
+        # Calculate metrics
+        total_sessions = len(sessions)
+        wpms = []
+        filler_pcts = []
+        clarity_scores = []
+        durations = []
+        
+        for session in sessions:
+            analysis = session.get('analysis', {})
+            wpms.append(analysis.get('words_per_minute', 0))
+            filler_pcts.append(analysis.get('filler_percentage', 0))
+            clarity_scores.append(analysis.get('clarity_score', 0))
+            durations.append(session.get('duration', 0))
+        
+        avg_wpm = sum(wpms) / len(wpms) if wpms else 0
+        avg_filler = sum(filler_pcts) / len(filler_pcts) if filler_pcts else 0
+        avg_clarity = sum(clarity_scores) / len(clarity_scores) if clarity_scores else 0
+        avg_duration = sum(durations) / len(durations) if durations else 0
+        
+        # Determine strengths (metrics above threshold)
+        strengths = []
+        if avg_wpm >= 120 and avg_wpm <= 160:
+            strengths.append("Excellent speaking pace - you maintain an ideal rhythm")
+        elif avg_wpm > 90:
+            strengths.append("Good speaking pace - clear and understandable")
+        
+        if avg_filler < 5:
+            strengths.append("Minimal filler words - very articulate speech")
+        elif avg_filler < 10:
+            strengths.append("Low filler word usage - good fluency")
+        
+        if avg_clarity > 80:
+            strengths.append("Exceptional clarity - very easy to understand")
+        elif avg_clarity > 60:
+            strengths.append("Good clarity - generally clear communication")
+        
+        if avg_duration > 60:
+            strengths.append("Good session length - thorough practice")
+        
+        if total_sessions >= 10:
+            strengths.append("Consistent practice - building strong habits")
+        elif total_sessions >= 5:
+            strengths.append("Regular practice - on the right track")
+        
+        # Determine weaknesses (areas to improve)
+        weaknesses = []
+        if avg_wpm < 90:
+            weaknesses.append("Speaking pace is slow - try to speak more confidently")
+        elif avg_wpm > 180:
+            weaknesses.append("Speaking too fast - slow down for better clarity")
+        
+        if avg_filler > 15:
+            weaknesses.append("High filler word usage - practice pausing instead")
+        elif avg_filler > 10:
+            weaknesses.append("Moderate filler words - work on reducing them")
+        
+        if avg_clarity < 60:
+            weaknesses.append("Clarity needs improvement - focus on enunciation")
+        elif avg_clarity < 80:
+            weaknesses.append("Clarity could be better - practice clear pronunciation")
+        
+        if avg_duration < 30:
+            weaknesses.append("Sessions are short - try longer practice sessions")
+        
+        # Calculate trends (last 5 vs previous sessions)
+        trends = {}
+        if len(sessions) >= 5:
+            recent_sessions = sessions[-5:]
+            older_sessions = sessions[:-5] if len(sessions) > 5 else sessions[:5]
+            
+            recent_wpm = sum(s.get('analysis', {}).get('words_per_minute', 0) for s in recent_sessions) / len(recent_sessions)
+            older_wpm = sum(s.get('analysis', {}).get('words_per_minute', 0) for s in older_sessions) / len(older_sessions) if older_sessions else recent_wpm
+            
+            recent_filler = sum(s.get('analysis', {}).get('filler_percentage', 0) for s in recent_sessions) / len(recent_sessions)
+            older_filler = sum(s.get('analysis', {}).get('filler_percentage', 0) for s in older_sessions) / len(older_sessions) if older_sessions else recent_filler
+            
+            trends['wpm_trend'] = 'improving' if recent_wpm > older_wpm else 'declining' if recent_wpm < older_wpm else 'stable'
+            trends['filler_trend'] = 'improving' if recent_filler < older_filler else 'declining' if recent_filler > older_filler else 'stable'
+        
+        # Generate recommendations
+        recommendations = []
+        if avg_wpm < 120:
+            recommendations.append("Try reading aloud to build speaking confidence and pace")
+        if avg_filler > 10:
+            recommendations.append("Practice pausing instead of using filler words")
+        if avg_clarity < 70:
+            recommendations.append("Record yourself and focus on clear enunciation")
+        if total_sessions < 10:
+            recommendations.append("Aim for daily practice to build consistency")
+        
+        return jsonify({
+            "success": True,
+            "insights": {
+                "strengths": strengths,
+                "weaknesses": weaknesses,
+                "trends": trends,
+                "recommendations": recommendations,
+                "metrics": {
+                    "avgWpm": round(avg_wpm, 1),
+                    "avgFiller": round(avg_filler, 1),
+                    "avgClarity": round(avg_clarity, 1),
+                    "avgDuration": round(avg_duration, 1),
+                    "totalSessions": total_sessions
+                }
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting insights: {e}")
+        traceback.print_exc()
+        return jsonify({" error": str(e)}), 500
+
+
 if __name__ == "__main__":
+
     port = int(os.environ.get('FLASK_RUN_PORT', 5328))
     app.run(debug=True, host='0.0.0.0', port=port)
