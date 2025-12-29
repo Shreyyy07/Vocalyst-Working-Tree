@@ -62,13 +62,17 @@ CORS(app, resources={r"/*": {
     "expose_headers": ["Content-Type", "Content-Disposition"]
 }})
 
-# Global Neuphonic Client (Hardcoded Key for Stability)
-NEUPHONIC_API_KEY_HARDCODED = "8999e98ca9370e30d6742fe614bbeb549bfb7132c8d808077ce81cdd6c7da4a1.3155bb0d-6e2f-46f2-af40-be217cd8b40d"
-try:
-    GLOBAL_TTS_CLIENT = Neuphonic(api_key=NEUPHONIC_API_KEY_HARDCODED)
-    print("Green Light: Global TTS Client Initialized.")
-except Exception as e:
-    print(f"Red Alert: Global TTS Init Failed: {e}")
+# Global Neuphonic Client (Load from environment)
+NEUPHONIC_API_KEY = os.getenv('NEUPHONIC_API_KEY', '')
+if NEUPHONIC_API_KEY:
+    try:
+        GLOBAL_TTS_CLIENT = Neuphonic(api_key=NEUPHONIC_API_KEY)
+        print("Green Light: Global TTS Client Initialized.")
+    except Exception as e:
+        print(f"Red Alert: Global TTS Init Failed: {e}")
+        GLOBAL_TTS_CLIENT = None
+else:
+    print("Warning: NEUPHONIC_API_KEY not set in environment")
     GLOBAL_TTS_CLIENT = None
 
 # Define filler words set for analysis
@@ -1437,11 +1441,11 @@ def enhance_audio():
                 logger.info(f"Received practice category from query params: {practice_category}")
         except Exception as e:
             logger.warning(f"Error parsing category: {str(e)}")
-        # FORCE KNOWN WORKING KEY (Bypass .env issues)
-        api_key = "8999e98ca9370e30d6742fe614bbeb549bfb7132c8d808077ce81cdd6c7da4a1.3155bb0d-6e2f-46f2-af40-be217cd8b40d"
-        # api_key_env = os.environ.get('NEUPHONIC_API_KEY')
-        # if not api_key_env: ...
-        # api_key = api_key_env.strip()
+        # Load API key from environment
+        api_key = os.getenv('NEUPHONIC_API_KEY', '')
+        if not api_key:
+            return jsonify({"error": "NEUPHONIC_API_KEY not configured"}), 500
+        api_key = api_key.strip()
         
         # Initialize client early
         client = Neuphonic(api_key=api_key)

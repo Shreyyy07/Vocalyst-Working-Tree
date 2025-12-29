@@ -8,8 +8,7 @@
 
 //   const [selectedVoice, setSelectedVoice] = useState("");
 //   const [isLoading, setIsLoading] = useState(false);
-
-//   const API_KEY = "sk_8f75ad145b0858db41f25cd5e00b3e986582118266900333"; // Replace with your ElevenLabs API Key
+//   // API key should be stored in environment variables, not in code
 
 //   useEffect(() => {
 //     const fetchVoices = async () => {
