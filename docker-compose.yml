@@ -17,6 +17,8 @@ services:
     environment:
       - FLASK_ENV=production
       - PYTHONUNBUFFERED=1
+    env_file:
+      - ./api/.env
     restart: unless-stopped
     networks:
       - vocalyst-network

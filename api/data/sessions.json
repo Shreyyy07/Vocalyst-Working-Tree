@@ -63,6 +63,175 @@
         "Focus on reducing filler words for clearer communication.",
         "Maintain steady pacing throughout your speech."
       ]
+    },
+    {
+      "id": "a26a68a7-e771-4b2a-a1bd-bbf6ecbaaf60",
+      "timestamp": "2025-12-29T18:17:15.093386Z",
+      "duration": 0,
+      "practiceMode": "emotive",
+      "analysis": {
+        "filler_count": 2,
+        "filler_emoji": "💭",
+        "filler_percentage": 10,
+        "found_fillers": [
+          "like",
+          "to"
+        ],
+        "speaking_metrics": {
+          "avg_word_length": 3.8,
+          "confidence_emoji": "👍",
+          "confidence_level": "Good",
+          "confidence_score": 70,
+          "estimated_pauses": 2,
+          "unique_words": 17,
+          "vocabulary_richness": 85,
+          "word_count": 20
+        },
+        "total_words": 20,
+        "ttr_analysis": {
+          "diversity_level": "very high",
+          "emoji": "🌟",
+          "ttr": 95,
+          "unique_words": 19
+        }
+      },
+      "recordingAnalysis": {
+        "emotions": [
+          {
+            "emotion": "neutral",
+            "percentage": "100.0"
+          }
+        ],
+        "gaze": [
+          {
+            "direction": "center",
+            "percentage": "100.0"
+          }
+        ],
+        "duration": 0
+      },
+      "transcription": "I was incredibly happy when I heard the news. It felt like a way to be lifted off my shoulder.",
+      "aiInsights": [
+        "Practice regularly to improve your speaking skills.",
+        "Focus on reducing filler words for clearer communication.",
+        "Maintain steady pacing throughout your speech."
+      ]
+    },
+    {
+      "id": "e2bc8980-5798-4ec7-9e48-a0f84a9fe8d0",
+      "timestamp": "2025-12-31T12:06:53.917711Z",
+      "duration": 0,
+      "practiceMode": "storytelling",
+      "analysis": {
+        "filler_count": 0,
+        "filler_emoji": "🎯",
+        "filler_percentage": 0,
+        "found_fillers": [],
+        "speaking_metrics": {
+          "avg_word_length": 4.4,
+          "confidence_emoji": "💪",
+          "confidence_level": "High",
+          "confidence_score": 100,
+          "estimated_pauses": 3,
+          "unique_words": 13,
+          "vocabulary_richness": 61.9,
+          "word_count": 21
+        },
+        "total_words": 22,
+        "ttr_analysis": {
+          "diversity_level": "very high",
+          "emoji": "🌟",
+          "ttr": 86.36,
+          "unique_words": 19
+        }
+      },
+      "recordingAnalysis": {
+        "emotions": [
+          {
+            "emotion": "neutral",
+            "percentage": "56.4"
+          },
+          {
+            "emotion": "sad",
+            "percentage": "24.0"
+          },
+          {
+            "emotion": "fear",
+            "percentage": "16.6"
+          }
+        ],
+        "gaze": [
+          {
+            "direction": "right",
+            "percentage": "100.0"
+          }
+        ],
+        "duration": 0
+      },
+      "transcription": "Hello my name is Shrejo Shie, I am currently 21 years old. I am currently a bachelor's degree from SRM Institute.",
+      "aiInsights": [
+        "Practice regularly to improve your speaking skills.",
+        "Focus on reducing filler words for clearer communication.",
+        "Maintain steady pacing throughout your speech."
+      ]
+    },
+    {
+      "id": "b8eaf62c-c7a1-4178-b69c-14cd21c0db66",
+      "timestamp": "2025-12-31T12:08:53.710099Z",
+      "duration": 0,
+      "practiceMode": "storytelling",
+      "analysis": {
+        "filler_count": 0,
+        "filler_emoji": "🎯",
+        "filler_percentage": 0,
+        "found_fillers": [],
+        "speaking_metrics": {
+          "avg_word_length": 3.4,
+          "confidence_emoji": "💪",
+          "confidence_level": "High",
+          "confidence_score": 100,
+          "estimated_pauses": 1,
+          "unique_words": 14,
+          "vocabulary_richness": 77.8,
+          "word_count": 18
+        },
+        "total_words": 18,
+        "ttr_analysis": {
+          "diversity_level": "very high",
+          "emoji": "🌟",
+          "ttr": 83.33,
+          "unique_words": 15
+        }
+      },
+      "recordingAnalysis": {
+        "emotions": [
+          {
+            "emotion": "fear",
+            "percentage": "49.1"
+          },
+          {
+            "emotion": "neutral",
+            "percentage": "22.1"
+          },
+          {
+            "emotion": "happy",
+            "percentage": "17.0"
+          }
+        ],
+        "gaze": [
+          {
+            "direction": "right",
+            "percentage": "100.0"
+          }
+        ],
+        "duration": 0
+      },
+      "transcription": "Once upon a time in a land far away there is lived a young girl with a secret.",
+      "aiInsights": [
+        "Practice regularly to improve your speaking skills.",
+        "Focus on reducing filler words for clearer communication.",
+        "Maintain steady pacing throughout your speech."
+      ]
     }
   ]
 }

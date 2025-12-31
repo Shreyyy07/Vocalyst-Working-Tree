@@ -99,6 +99,121 @@ def ngrams(words, n):
         output.append(' '.join(words[i:i + n]))
     return output
 
+# ============================================================================
+# EXCEPTION HANDLING UTILITIES
+# ============================================================================
+
+def safe_write_json(filepath, data, create_backup=True):
+    """
+    Atomic JSON write with error handling and optional backup.
+    Returns: (success: bool, error_message: str or None)
+    """
+    try:
+        # Create backup if file exists
+        if create_backup and os.path.exists(filepath):
+            backup_path = f"{filepath}.backup"
+            try:
+                import shutil
+                shutil.copy2(filepath, backup_path)
+            except Exception as e:
+                logger.warning(f"Failed to create backup: {e}")
+        
+        # Write to temp file first (atomic operation)
+        temp_path = f"{filepath}.tmp"
+        with open(temp_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        
+        # Atomic rename
+        if os.name == 'nt':  # Windows
+            if os.path.exists(filepath):
+                os.replace(temp_path, filepath)
+            else:
+                os.rename(temp_path, filepath)
+        else:  # Unix/Linux
+            os.replace(temp_path, filepath)
+        
+        return True, None
+    except IOError as e:
+        error_msg = f"File I/O error: {str(e)}"
+        logger.error(error_msg)
+        # Clean up temp file
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except:
+                pass
+        return False, error_msg
+    except Exception as e:
+        error_msg = f"Unexpected error writing JSON: {str(e)}"
+        logger.error(error_msg)
+        return False, error_msg
+
+def safe_read_json(filepath, default=None):
+    """
+    Safe JSON read with error handling.
+    Returns: (data, error_message: str or None)
+    """
+    try:
+        if not os.path.exists(filepath):
+            return default if default is not None else [], None
+        
+        with open(filepath, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        return data, None
+    except json.JSONDecodeError as e:
+        error_msg = f"JSON decode error in {filepath}: {str(e)}"
+        logger.error(error_msg)
+        # Try to recover from backup
+        backup_path = f"{filepath}.backup"
+        if os.path.exists(backup_path):
+            try:
+                with open(backup_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                logger.info(f"Recovered data from backup: {backup_path}")
+                return data, None
+            except:
+                pass
+        return default if default is not None else [], error_msg
+    except Exception as e:
+        error_msg = f"Error reading JSON from {filepath}: {str(e)}"
+        logger.error(error_msg)
+        return default if default is not None else [], error_msg
+
+def call_api_with_retry(api_func, max_retries=3, backoff_factor=2, *args, **kwargs):
+    """
+    Call an API function with exponential backoff retry logic.
+    Returns: (result, error_message: str or None)
+    """
+    import time
+    
+    for attempt in range(max_retries):
+        try:
+            result = api_func(*args, **kwargs)
+            return result, None
+        except Exception as e:
+            if attempt == max_retries - 1:
+                error_msg = f"API call failed after {max_retries} attempts: {str(e)}"
+                logger.error(error_msg)
+                return None, error_msg
+            
+            wait_time = backoff_factor ** attempt
+            logger.warning(f"API call failed (attempt {attempt + 1}/{max_retries}), retrying in {wait_time}s: {str(e)}")
+            time.sleep(wait_time)
+    
+    return None, "Max retries exceeded"
+
+def get_fallback_insights():
+    """
+    Return generic insights when AI generation fails.
+    """
+    return [
+        "Focus on maintaining a steady pace throughout your presentation.",
+        "Try to minimize filler words like 'um' and 'uh' for clearer communication.",
+        "Practice maintaining eye contact to engage your audience better.",
+        "Work on varying your tone to keep the audience engaged.",
+        "Consider recording yourself to identify areas for improvement."
+    ]
+
 def analyze_emotional_journey(emotion_timeline):
     """
     Analyzes a timeline of emotions captured during recording.
@@ -1942,38 +2057,40 @@ from datetime import datetime
 SESSIONS_FILE = os.path.join(script_dir, 'data', 'sessions.json')
 
 def read_sessions():
-    """Safely read sessions from JSON file"""
-    try:
-        if not os.path.exists(SESSIONS_FILE):
-            return {"sessions": []}
-        
-        with open(SESSIONS_FILE, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            return data if isinstance(data, dict) and 'sessions' in data else {"sessions": []}
-    except (json.JSONDecodeError, IOError) as e:
-        logger.error(f"Error reading sessions file: {e}")
-        return {"sessions": []}
+    """Safely read sessions from JSON file with error recovery"""
+    default_data = {"sessions": []}
+    
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(SESSIONS_FILE), exist_ok=True)
+    
+    data, error = safe_read_json(SESSIONS_FILE, default=default_data)
+    
+    if error:
+        logger.warning(f"Using default sessions data due to error: {error}")
+    
+    # Validate structure
+    if not isinstance(data, dict) or 'sessions' not in data:
+        logger.warning("Invalid sessions data structure, using default")
+        return default_data
+    
+    return data
 
 def write_sessions(data):
-    """Safely write sessions to JSON file with locking"""
-    try:
-        os.makedirs(os.path.dirname(SESSIONS_FILE), exist_ok=True)
-        
-        # Write to temporary file first
-        temp_file = SESSIONS_FILE + '.tmp'
-        with open(temp_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        
-        # Atomic rename
-        if os.path.exists(SESSIONS_FILE):
-            os.replace(temp_file, SESSIONS_FILE)
-        else:
-            os.rename(temp_file, SESSIONS_FILE)
-        
-        return True
-    except Exception as e:
-        logger.error(f"Error writing sessions file: {e}")
+    """Safely write sessions to JSON file with atomic operations"""
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(SESSIONS_FILE), exist_ok=True)
+    
+    # Validate data structure
+    if not isinstance(data, dict) or 'sessions' not in data:
+        logger.error("Invalid data structure for sessions")
         return False
+    
+    success, error = safe_write_json(SESSIONS_FILE, data, create_backup=True)
+    
+    if error:
+        logger.error(f"Failed to write sessions: {error}")
+    
+    return success
 
 @app.route("/api/save-session", methods=['POST', 'OPTIONS'])
 def save_session():
