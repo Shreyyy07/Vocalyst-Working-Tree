@@ -193,7 +193,7 @@ export default function TTSPage() {
 
       console.log("Sending TTS request:", requestBody);
 
-      const response = await fetch("http://localhost:5328/api/tts", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}`}/api/tts`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

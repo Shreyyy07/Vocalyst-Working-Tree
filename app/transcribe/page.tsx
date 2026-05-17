@@ -83,7 +83,7 @@ export default function TranscribePage() {
       formData.append('file', videoBlob, 'recording.mp4');
 
       console.log('Sending transcription request...');
-      const response = await fetch("http://localhost:5328/api/speech2text", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}`}/api/speech2text`, {
         method: "POST",
         body: formData
       });

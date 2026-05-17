@@ -70,7 +70,7 @@ export default function SpeechToTextPage() {
 
             console.log("Sending audio to backend...");
 
-            const response = await fetch("http://localhost:5328/api/speech2text", {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}`}/api/speech2text`, {
                 method: "POST",
                 body: formData,
             });

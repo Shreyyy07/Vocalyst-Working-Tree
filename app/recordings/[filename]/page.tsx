@@ -429,7 +429,7 @@ export default function RecordingPage() {
       // Fetch the audio file
       console.log("Fetching audio file:", audioFilename);
       const audioResponse = await fetch(
-        `http://localhost:5328/uploads/${audioFilename}`,
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}/uploads/${audioFilename}`,
         { signal }
       );
       if (!audioResponse.ok) {
@@ -447,7 +447,7 @@ export default function RecordingPage() {
       formData.append("file", audioBlob, audioFilename); // Use original filename to preserve extension
 
       console.log("Sending transcription request...");
-      const response = await fetch("http://localhost:5328/api/speech2text", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}`}/api/speech2text`, {
         method: "POST",
         body: formData,
         signal,
@@ -514,7 +514,7 @@ export default function RecordingPage() {
 
       // Fetch the audio file
       const audioResponse = await fetch(
-        `http://localhost:5328/uploads/${audioFilename}`
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}/uploads/${audioFilename}`
       );
       if (!audioResponse.ok) {
         throw new Error(
@@ -565,7 +565,7 @@ export default function RecordingPage() {
         formData.append("category", practiceCategory);
       }
 
-      const response = await fetch("http://localhost:5328/api/enhance-audio", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}`}/api/enhance-audio`, {
         method: "POST",
         body: formData,
       });
@@ -761,7 +761,7 @@ export default function RecordingPage() {
           <div className="relative w-full aspect-video bg-black rounded-lg overflow-hidden">
             <video
               ref={videoRef}
-              src={`http://localhost:5328/uploads/${filename}`}
+              src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}/uploads/${filename}`}
               controls
               className="w-full h-full object-contain"
             />
@@ -776,7 +776,7 @@ export default function RecordingPage() {
             analysis={analysis}
             recordingAnalysis={recordingAnalysis}
             audioUrl={
-              enhancedAudio || `http://localhost:5328/uploads/${audioFilename}`
+              enhancedAudio || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}/uploads/${audioFilename}`
             }
           />
         </div>

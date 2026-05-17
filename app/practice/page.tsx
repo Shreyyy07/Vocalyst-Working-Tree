@@ -239,7 +239,7 @@ export default function PracticePage() {
       ctx.drawImage(videoRef.current, 0, 0);
       const imageData = canvas.toDataURL("image/jpeg", 0.8);
 
-      const response = await fetch("http://localhost:5328/api/detect-combined", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}`}/api/detect-combined`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: imageData }),
@@ -402,7 +402,7 @@ export default function PracticePage() {
 
     setIsUploading(true);
     try {
-      const response = await fetch("http://localhost:5328/api/upload-video", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}`}/api/upload-video`, {
         method: "POST",
         body: formData
       });
@@ -432,13 +432,13 @@ export default function PracticePage() {
     setIsTranscribing(true);
     try {
       // Transcription
-      const audioRes = await fetch(`http://localhost:5328/uploads/${audioVarsFilename}`);
+      const audioRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}/uploads/${audioVarsFilename}`);
       const audioBlob = await audioRes.blob();
       const formData = new FormData();
       formData.append("file", audioBlob, audioVarsFilename);
       if (selectedMode) formData.append("category", selectedMode.id);
 
-      const txResponse = await fetch("http://localhost:5328/api/speech2text", {
+      const txResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}`}/api/speech2text`, {
         method: "POST", body: formData
       });
       const txResult = await txResponse.json();
@@ -455,7 +455,7 @@ export default function PracticePage() {
 
       // Enhancement - Endpoint not implemented yet
       // setIsEnhancing(true);
-      // const enResponse = await fetch("http://localhost:5328/api/enhance-audio", {
+      // const enResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}`}/api/enhance-audio`, {
       //   method: "POST", body: formData
       // });
 
@@ -502,7 +502,7 @@ export default function PracticePage() {
 
       console.log('Saving session:', sessionData); // Debug log
 
-      const response = await fetch('http://localhost:5328/api/save-session', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}/api/save-session`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(sessionData)

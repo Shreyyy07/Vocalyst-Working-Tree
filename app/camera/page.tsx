@@ -84,7 +84,7 @@ export default function CameraPage() {
   // --- Core Camera Logic ---
   const testApiConnection = async () => {
     try {
-      const response = await fetch("http://localhost:5328/api/test", { headers: { Accept: "application/json" } });
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}`}/api/test`, { headers: { Accept: "application/json" } });
       const data = await response.json();
       return true;
     } catch (error) {
@@ -110,7 +110,7 @@ export default function CameraPage() {
       ctx.drawImage(videoRef.current, 0, 0);
       const imageData = canvas.toDataURL("image/jpeg", 0.8);
 
-      const response = await fetch("http://localhost:5328/api/detect-combined", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}`}/api/detect-combined`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: imageData }),
@@ -315,7 +315,7 @@ export default function CameraPage() {
     setIsUploading(true);
     try {
       // Upload
-      const response = await fetch("http://localhost:5328/api/upload-video", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}`}/api/upload-video`, {
         method: "POST",
         body: formData
       });
@@ -440,13 +440,13 @@ export default function CameraPage() {
     setIsTranscribing(true);
     try {
       // Fetch blob first
-      const audioRes = await fetch(`http://localhost:5328/uploads/${audioVarsFilename}`);
+      const audioRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}/uploads/${audioVarsFilename}`);
       const audioBlob = await audioRes.blob();
 
       const formData = new FormData();
       formData.append("file", audioBlob, audioVarsFilename);
 
-      const response = await fetch("http://localhost:5328/api/speech2text", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}`}/api/speech2text`, {
         method: "POST",
         body: formData
       });
@@ -470,13 +470,13 @@ export default function CameraPage() {
   const enhanceAudio = async (audioVarsFilename: string) => {
     setIsEnhancing(true);
     try {
-      const audioRes = await fetch(`http://localhost:5328/uploads/${audioVarsFilename}`);
+      const audioRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}/uploads/${audioVarsFilename}`);
       const audioBlob = await audioRes.blob();
 
       const formData = new FormData();
       formData.append("file", audioBlob, audioVarsFilename);
 
-      const response = await fetch("http://localhost:5328/api/enhance-audio", {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}`}/api/enhance-audio`, {
         method: "POST",
         body: formData
       });
@@ -605,7 +605,7 @@ export default function CameraPage() {
                     <div className="aspect-video bg-black rounded-lg overflow-hidden border border-white/10">
                       {uploadedVideo && (
                         <video
-                          src={`http://localhost:5328/uploads/${uploadedVideo}`}
+                          src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}/uploads/${uploadedVideo}`}
                           controls
                           className="w-full h-full object-contain"
                         />

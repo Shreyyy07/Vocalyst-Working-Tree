@@ -74,7 +74,7 @@ export default function AnalyticsPage() {
     setError(null);
 
     try {
-      const response = await fetch('http://localhost:5328/api/get-analytics');
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}/api/get-analytics`);
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -102,7 +102,7 @@ export default function AnalyticsPage() {
 
     setIsResetting(true);
     try {
-      const response = await fetch('http://localhost:5328/api/reset-analytics', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5328'}/api/reset-analytics`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
