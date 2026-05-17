@@ -1,12 +1,7 @@
 {
-    "builds": [
-      {
-        "src": "requirements.txt",
-        "use": "@vercel/python",
-        "config": {
-          "pythonVersion": "3.10"
-        }
-      }
-    ]
-  }
-  
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "devCommand": "npm run next-dev",
+  "installCommand": "npm install",
+  "outputDirectory": ".next"
+}

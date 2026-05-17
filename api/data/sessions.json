@@ -232,6 +232,290 @@
         "Focus on reducing filler words for clearer communication.",
         "Maintain steady pacing throughout your speech."
       ]
+    },
+    {
+      "id": "842261d4-1bf8-4c9d-a1aa-89603624a2ff",
+      "timestamp": "2026-01-09T08:08:26.641084Z",
+      "duration": 0,
+      "practiceMode": "formal",
+      "analysis": {
+        "filler_count": 1,
+        "filler_emoji": "💭",
+        "filler_percentage": 8.33,
+        "found_fillers": [
+          "to"
+        ],
+        "speaking_metrics": {
+          "avg_word_length": 4.1,
+          "confidence_emoji": "👍",
+          "confidence_level": "Good",
+          "confidence_score": 75,
+          "estimated_pauses": 1,
+          "unique_words": 11,
+          "vocabulary_richness": 91.7,
+          "word_count": 12
+        },
+        "total_words": 12,
+        "ttr_analysis": {
+          "diversity_level": "very high",
+          "emoji": "🌟",
+          "ttr": 100,
+          "unique_words": 12
+        }
+      },
+      "recordingAnalysis": {
+        "emotions": [
+          {
+            "emotion": "sad",
+            "percentage": "36.4"
+          },
+          {
+            "emotion": "happy",
+            "percentage": "36.0"
+          },
+          {
+            "emotion": "neutral",
+            "percentage": "21.5"
+          }
+        ],
+        "gaze": [
+          {
+            "direction": "right",
+            "percentage": "100.0"
+          }
+        ],
+        "duration": 0
+      },
+      "transcription": "I appreciate you talk taking the time to meet with me today.",
+      "aiInsights": [
+        "Practice regularly to improve your speaking skills.",
+        "Focus on reducing filler words for clearer communication.",
+        "Maintain steady pacing throughout your speech."
+      ]
+    },
+    {
+      "id": "9bd73dc0-e05b-4704-b933-e055acf2717a",
+      "timestamp": "2026-01-09T09:29:41.651281Z",
+      "duration": 0,
+      "practiceMode": "formal",
+      "analysis": {
+        "filler_count": 2,
+        "filler_emoji": "💭",
+        "filler_percentage": 7.69,
+        "found_fillers": [
+          "to",
+          "to"
+        ],
+        "speaking_metrics": {
+          "avg_word_length": 6.1,
+          "confidence_emoji": "👍",
+          "confidence_level": "Good",
+          "confidence_score": 76.9,
+          "estimated_pauses": 4,
+          "unique_words": 19,
+          "vocabulary_richness": 73.1,
+          "word_count": 26
+        },
+        "total_words": 26,
+        "ttr_analysis": {
+          "diversity_level": "very high",
+          "emoji": "🌟",
+          "ttr": 88.46,
+          "unique_words": 23
+        }
+      },
+      "recordingAnalysis": {
+        "emotions": [
+          {
+            "emotion": "neutral",
+            "percentage": "100.0"
+          }
+        ],
+        "gaze": [
+          {
+            "direction": "center",
+            "percentage": "100.0"
+          }
+        ],
+        "duration": 0
+      },
+      "transcription": "Regarding the project timeline, we are currently on schedule. However, I recommend allowing allocating additional resources to the QA phase to ensure the highest quality deliverables.",
+      "aiInsights": [
+        "Practice regularly to improve your speaking skills.",
+        "Focus on reducing filler words for clearer communication.",
+        "Maintain steady pacing throughout your speech."
+      ]
+    },
+    {
+      "id": "bcef035c-38d5-4841-b841-f531ee73b8d9",
+      "timestamp": "2026-01-09T10:57:43.385528Z",
+      "duration": 0,
+      "practiceMode": "persuasive",
+      "analysis": {
+        "filler_count": 0,
+        "filler_emoji": "🎯",
+        "filler_percentage": 0,
+        "found_fillers": [],
+        "speaking_metrics": {
+          "avg_word_length": 4.5,
+          "confidence_emoji": "💪",
+          "confidence_level": "High",
+          "confidence_score": 100,
+          "estimated_pauses": 1,
+          "unique_words": 10,
+          "vocabulary_richness": 90.9,
+          "word_count": 11
+        },
+        "total_words": 11,
+        "ttr_analysis": {
+          "diversity_level": "very high",
+          "emoji": "🌟",
+          "ttr": 100,
+          "unique_words": 11
+        }
+      },
+      "recordingAnalysis": {
+        "emotions": [
+          {
+            "emotion": "sad",
+            "percentage": "55.0"
+          },
+          {
+            "emotion": "neutral",
+            "percentage": "44.1"
+          },
+          {
+            "emotion": "fear",
+            "percentage": "0.7"
+          }
+        ],
+        "gaze": [
+          {
+            "direction": "center",
+            "percentage": "100.0"
+          }
+        ],
+        "duration": 0
+      },
+      "transcription": "I believe that the remote work is a future of productivity.",
+      "aiInsights": [
+        "Practice regularly to improve your speaking skills.",
+        "Focus on reducing filler words for clearer communication.",
+        "Maintain steady pacing throughout your speech."
+      ]
+    },
+    {
+      "id": "bf9c2d20-5342-4832-8535-4c4e84b0388b",
+      "timestamp": "2026-01-09T11:20:04.628533Z",
+      "duration": 0,
+      "practiceMode": "formal",
+      "analysis": {
+        "filler_count": 2,
+        "filler_emoji": "💭",
+        "filler_percentage": 8.33,
+        "found_fillers": [
+          "to",
+          "to"
+        ],
+        "speaking_metrics": {
+          "avg_word_length": 4.6,
+          "confidence_emoji": "👍",
+          "confidence_level": "Good",
+          "confidence_score": 75,
+          "estimated_pauses": 2,
+          "unique_words": 20,
+          "vocabulary_richness": 83.3,
+          "word_count": 24
+        },
+        "total_words": 24,
+        "ttr_analysis": {
+          "diversity_level": "very high",
+          "emoji": "🌟",
+          "ttr": 91.67,
+          "unique_words": 22
+        }
+      },
+      "recordingAnalysis": {
+        "emotions": [
+          {
+            "emotion": "neutral",
+            "percentage": "65.8"
+          },
+          {
+            "emotion": "sad",
+            "percentage": "33.9"
+          },
+          {
+            "emotion": "angry",
+            "percentage": "0.3"
+          }
+        ],
+        "gaze": [
+          {
+            "direction": "center",
+            "percentage": "100.0"
+          }
+        ],
+        "duration": 0
+      },
+      "transcription": "It has been a pleasure doing business with you. We look forward to a continued and mutual beneficial partnership in the years to come.",
+      "aiInsights": [
+        "Practice regularly to improve your speaking skills.",
+        "Focus on reducing filler words for clearer communication.",
+        "Maintain steady pacing throughout your speech."
+      ]
+    },
+    {
+      "id": "99dabe65-0b53-47a0-9295-93a409b6b114",
+      "timestamp": "2026-01-09T11:24:26.021621Z",
+      "duration": 0,
+      "practiceMode": "persuasive",
+      "analysis": {
+        "filler_count": 1,
+        "filler_emoji": "💭",
+        "filler_percentage": 7.69,
+        "found_fillers": [
+          "just"
+        ],
+        "speaking_metrics": {
+          "avg_word_length": 4.8,
+          "confidence_emoji": "👍",
+          "confidence_level": "Good",
+          "confidence_score": 76.9,
+          "estimated_pauses": 2,
+          "unique_words": 9,
+          "vocabulary_richness": 69.2,
+          "word_count": 13
+        },
+        "total_words": 13,
+        "ttr_analysis": {
+          "diversity_level": "very high",
+          "emoji": "🌟",
+          "ttr": 84.62,
+          "unique_words": 11
+        }
+      },
+      "recordingAnalysis": {
+        "emotions": [
+          {
+            "emotion": "neutral",
+            "percentage": "100.0"
+          }
+        ],
+        "gaze": [
+          {
+            "direction": "center",
+            "percentage": "100.0"
+          }
+        ],
+        "duration": 0
+      },
+      "transcription": "Climate change is not just an environmental issue. It is an economical one.",
+      "aiInsights": [
+        "Practice regularly to improve your speaking skills.",
+        "Focus on reducing filler words for clearer communication.",
+        "Maintain steady pacing throughout your speech."
+      ]
     }
   ]
 }

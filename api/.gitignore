@@ -1,0 +1,33 @@
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Environment files (never commit secrets)
+.env
+
+# Temp / runtime files
+temp/
+*.tmp
+*.backup
+
+# Uploads (user data)
+uploads/
+
+# Model cache (downloaded at runtime or build time)
+# shape_predictor is large - handle via Git LFS or runtime download
+*.dat
+
+# Python eggs
+*.egg
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db
