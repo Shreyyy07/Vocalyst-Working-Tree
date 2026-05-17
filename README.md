@@ -288,7 +288,7 @@ docker-compose down && docker-compose build && docker-compose up
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    VOCALYST PLATFORM (Docker)                    │
+│                    VOCALYST PLATFORM                            │
 └─────────────────────────────────────────────────────────────────┘
                                  │
                     ┌────────────┴────────────┐
