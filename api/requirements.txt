@@ -29,7 +29,7 @@ tf_keras==2.19.0
 tensorflow==2.19.0
 
 # --- Speech & Audio ---
-openai-whisper==20240930
+# openai-whisper is installed manually in Dockerfile with --no-build-isolation
 tiktoken==0.9.0
 
 # --- TTS ---
