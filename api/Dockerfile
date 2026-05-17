@@ -4,8 +4,6 @@
 
 FROM python:3.11-slim
 
-# HuggingFace Spaces runs as user 1000 — set it up early
-RUN useradd -m -u 1000 user
 WORKDIR /app
 
 # ── System Dependencies ──────────────────────────────────────
@@ -23,44 +21,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Python Dependencies ──────────────────────────────────────
-# Copy and install requirements first (Docker layer cache)
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt
-
-# ── Pre-download Whisper model ───────────────────────────────
-# Bake the model into the image so there's no cold-start download
-RUN python -c "import whisper; whisper.load_model('base')"
-
-# ── Pre-warm DeepFace models ─────────────────────────────────
-# DeepFace downloads face-detection models on first run; cache them now
-RUN python -c "\
-from deepface import DeepFace; \
-import numpy as np; \
-from PIL import Image; \
-img = Image.fromarray(np.zeros((100,100,3), dtype=np.uint8)); \
-import io; \
-buf = io.BytesIO(); \
-img.save(buf, format='JPEG'); \
-" || true
 
 # ── Application Code ─────────────────────────────────────────
 COPY . .
 
-# Create runtime directories
+# Create runtime directories with global permissions so HF Spaces 
+# non-root user can write to them.
 RUN mkdir -p data uploads temp && \
-    chown -R user:user /app
-
-# ── HuggingFace Spaces: run as non-root ──────────────────────
-USER user
+    chmod -R 777 /app
 
 # ── Environment ──────────────────────────────────────────────
 ENV PYTHONUNBUFFERED=1 \
     FLASK_APP=index.py \
-    PORT=5328
+    PORT=5328 \
+    MPLCONFIGDIR=/app/temp \
+    XDG_CACHE_HOME=/app/temp
 
 # ── Expose & Run ─────────────────────────────────────────────
 EXPOSE 5328
 
-# Use gunicorn for production (not Flask dev server)
 CMD ["gunicorn", "--bind", "0.0.0.0:5328", "--workers", "1", "--timeout", "120", "--preload", "index:app"]
