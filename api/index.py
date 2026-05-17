@@ -55,22 +55,7 @@ logger = logging.getLogger(__name__)
 # Initialize Flask app
 app = Flask(__name__)
 
-# Build allowed origins: always include localhost, plus any production URL from env
-_allowed_origins = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-]
-_production_origin = os.getenv("ALLOWED_ORIGIN", "")
-if _production_origin:
-    _allowed_origins.append(_production_origin)
-
-CORS(app, resources={r"/*": {
-    "origins": _allowed_origins,
-    "methods": ["GET", "POST", "OPTIONS"],
-    "allow_headers": ["Content-Type", "Accept"],
-    "supports_credentials": True,
-    "expose_headers": ["Content-Type", "Content-Disposition"]
-}})
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Global Neuphonic Client (Load from environment)
 NEUPHONIC_API_KEY = os.getenv('NEUPHONIC_API_KEY', '')
