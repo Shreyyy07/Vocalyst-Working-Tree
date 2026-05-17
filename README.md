@@ -1,151 +1,502 @@
 <div align="center">
-  <img src="https://via.placeholder.com/150?text=Vocalyst+Logo" alt="Vocalyst Logo" width="120" />
-  <h1>🎙️ Vocalyst AI</h1>
-  <p><strong>Your Intelligent AI Communication & Interview Coach</strong></p>
 
-  <p>
-    <a href="#live-demo"><img src="https://img.shields.io/badge/Deployed-Vercel-black?style=for-the-badge&logo=vercel" alt="Vercel" /></a>
-    <a href="#live-demo"><img src="https://img.shields.io/badge/Backend-Hugging_Face-yellow?style=for-the-badge&logo=huggingface" alt="Hugging Face" /></a>
-    <img src="https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js" alt="Next.js" />
-    <img src="https://img.shields.io/badge/Python-3.11-blue?style=for-the-badge&logo=python" alt="Python" />
-  </p>
+# 🎙️ Vocalyst
+
+### AI-Powered Communication Coaching Platform
+
+*Elevate your public speaking and presentation skills through intelligent multimodal analysis*
+
+[![GitHub Stars](https://img.shields.io/github/stars/Shreyyy07/Vocalyst-Main?style=social)](https://github.com/Shreyyy07/Vocalyst-Main)
+[![GitHub Forks](https://img.shields.io/github/forks/Shreyyy07/Vocalyst-Main?style=social)](https://github.com/Shreyyy07/Vocalyst-Main/fork)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
+
+[Features](#-features) • [Quick Start](#-quick-start) • [Docker Deployment](#-docker-deployment) • [Technologies](#-technologies-used) • [Roadmap](#-roadmap)
+
 </div>
 
 ---
 
-## 🌟 About The Project
+## 📖 About Vocalyst
 
-**Vocalyst AI** is an advanced, full-stack AI application designed to help users master their communication, presentation, and interview skills. By analyzing your real-time video feed and audio input, Vocalyst provides instant feedback on your facial expressions, speech tone, and eye contact.
+**Vocalyst** is an advanced AI-driven communication coaching platform that revolutionizes how individuals improve their public speaking and presentation skills. Unlike traditional tools that focus solely on text analysis, Vocalyst provides comprehensive, real-time multimodal feedback by analyzing:
 
-Whether you're preparing for a high-stakes interview or just want to improve your public speaking confidence, Vocalyst acts as your personal, highly intelligent AI coach.
+- 🗣️ **Voice Analysis** - Speech fluency, pacing, tone, and delivery
+- 😊 **Facial Expressions** - Emotional engagement and confidence levels
+- 👁️ **Eye Contact** - Gaze tracking and audience engagement
+- 📝 **Content Structure** - Logical coherence, vocabulary, and engagement
+
+Communication is more than just words—it's about how you sound, how you look, and how you structure your message. Vocalyst bridges the gap left by conventional tools by offering a unified, intelligent solution for holistic communication improvement.
 
 <div align="center">
-  <!-- TODO: Replace with an actual GIF of the dashboard -->
-  <img src="https://via.placeholder.com/800x400?text=Insert+Dashboard+GIF+Here" alt="Vocalyst Dashboard Demo" />
+  <img src="./public/gifss/g1.gif" alt="Vocalyst Landing Page Demo" />
 </div>
 
 ---
 
-## 🚀 Live Demo
+## ✨ Features
 
-The application is deployed with a split-architecture for maximum performance:
-* **Frontend:** Hosted on [Vercel](https://vocalyst.vercel.app/) *(Insert your actual link here)*
-* **ML Backend:** Hosted on [Hugging Face Spaces](https://huggingface.co/spaces/Shreyyy07/vocalyst-backend)
+### 🎯 Core Capabilities
 
-👉 **[Try Vocalyst AI Live](#)** *(Add your Vercel URL here)*
+#### **1. Multimodal Practice Sessions**
+- **Real-time Feedback** during presentations
+- **Multiple Practice Modes**: General, Persuasive, Emotive, Debate, Storytelling
+- **Camera & Audio Integration** for comprehensive analysis
+- **Live Metrics Display** with instant feedback
 
-*(Note: The AI backend goes to sleep when unused. The first request may take ~60 seconds to wake the server up.)*
-
----
-
-## ✨ Key Features
-
-### 👁️ Real-Time Emotion & Eye Tracking
-Vocalyst utilizes **DeepFace** and **MediaPipe** to analyze your facial expressions and eye movements through your webcam. It calculates confidence levels and tracks exactly where you are looking during your speech.
 <div align="center">
-  <!-- TODO: Replace with an actual GIF of the eye tracking/emotion feature -->
-  <img src="https://via.placeholder.com/800x300?text=Insert+Eye+Tracking+GIF+Here" alt="Eye Tracking Demo" />
+  <img src="./public/gifss/g4.gif" alt="Vocalyst Camera & Practice Session Demo" />
 </div>
 
-### 🗣️ Whisper Speech-to-Text
-Powered by **OpenAI Whisper**, Vocalyst perfectly transcribes your spoken words in real-time, allowing it to analyze your vocabulary, pacing, and filler word usage.
+#### **2. Advanced Speech Analysis**
+- **Speech Transcription** using OpenAI Whisper
+- **Filler Word Detection** (um, uh, like, etc.) with frequency tracking
+- **Words Per Minute (WPM)** measurement
+- **Clarity Scoring** based on pronunciation and enunciation
+- **Vocabulary Sophistication** tracking
 
-### 🤖 Instant AI Feedback & TTS
-The system uses advanced LLMs to evaluate your performance and provides verbal feedback using ultra-realistic **Neuphonic** Text-to-Speech voices.
+#### **3. Visual & Emotional Intelligence**
+- **Eye Contact Tracking** via MediaPipe
+- **Facial Expression Analysis** using DeepFace
+- **Emotion Detection** (neutral, happy, sad, angry, fear, surprise)
+- **Engagement Estimation** through facial cues
+- **Real-time Visual Feedback** during sessions
+
+#### **4. AI-Powered Insights**
+- **Dynamic Session Insights** generated by Google Gemini AI
+- **Personalized Recommendations** based on performance
+- **Trend Analysis** (improving/declining/stable metrics)
+- **Strengths & Weaknesses** identification
+- **Gamification** with level/XP system
+
 <div align="center">
-  <!-- TODO: Replace with an actual GIF of the feedback feature -->
-  <img src="https://via.placeholder.com/800x300?text=Insert+Feedback+GIF+Here" alt="Feedback Demo" />
+  <img src="./public/gifss/g3.gif" alt="Vocalyst AI Insights Demo" />
 </div>
 
-### 📊 Comprehensive Analytics Dashboard
-Track your progress over time with a dedicated dashboard. Review past sessions, analyze your core metrics (Confidence, Clarity, Eye Contact), and see visual graphs of your improvement.
+#### **5. Comprehensive Analytics**
+- **Performance Dashboard** with historical trends
+- **Session History** with detailed breakdowns
+- **Progress Tracking** over time
+- **Practice Mode Analytics** with distribution charts
+- **Emotional Expression Patterns**
+- **Reset Functionality** with data archiving
+
+<div align="center">
+  <img src="./public/gifss/g2.gif" alt="Vocalyst Analytics Dashboard Demo" />
+</div>
+
+#### **6. Text-to-Speech Integration**
+- **Multiple Voice Options** (8 high-quality AI voices)
+- **Speed Control** for customized playback
+- **ElevenLabs & Neuphonic** integration
+- **Practice Prompts** generation
 
 ---
 
-## 🏗️ Architecture & Tech Stack
-
-Vocalyst was built with a highly optimized, decoupled architecture separating the fast UI from the heavy Machine Learning processing.
-
-### Frontend (Next.js & Vercel)
-* **Framework:** Next.js 14, React
-* **Styling:** TailwindCSS
-* **Deployment:** Vercel
-
-### Backend (Python & Hugging Face Spaces)
-* **API Framework:** Flask, Gunicorn
-* **Containerization:** Custom Docker Environment (Debian-based)
-* **Machine Learning:**
-  * `PyTorch` & `TensorFlow` (Core ML)
-  * `DeepFace` (Emotion Recognition)
-  * `OpenAI Whisper` (Transcription)
-  * `MediaPipe` & `OpenCV` (Computer Vision & Face Mesh)
-  * `PyNeuphonic` (Real-time TTS)
-* **Deployment:** Hugging Face Spaces (Docker)
-
----
-
-## 💻 Local Installation
-
-If you want to run this project locally on your machine:
+## 🚀 Quick Start
 
 ### Prerequisites
-* Node.js (v18+)
-* Python (3.11+)
-* FFmpeg installed on your system
 
-### 1. Clone the repository
+- **Docker & Docker Compose** (recommended) OR
+- **Node.js** (v18+) and **Python** (v3.11+)
+
+### Option 1: Docker Deployment (Recommended)
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Shreyyy07/Vocalyst-Main.git
+   cd Vocalyst-Main
+   ```
+
+2. **Set up environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API keys
+   ```
+
+3. **Start with Docker Compose**
+   ```bash
+   docker-compose up
+   ```
+
+4. **Access the application**
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:5328
+
+### Option 2: Local Development
+
+1. **Clone and install dependencies**
+   ```bash
+   git clone https://github.com/Shreyyy07/Vocalyst-Main.git
+   cd Vocalyst-Main
+   
+   # Install Python dependencies
+   pip install -r requirements.txt
+   
+   # Install Node.js dependencies
+   npm install
+   ```
+
+2. **Set up environment variables**
+   ```bash
+   cp .env.example .env
+   # Add your API keys to .env
+   ```
+
+3. **Run both servers**
+   ```bash
+   npm run dev
+   ```
+
+   Or run separately:
+   ```bash
+   # Terminal 1 - Frontend
+   npm run next-dev
+   
+   # Terminal 2 - Backend
+   npm run flask-dev
+   ```
+
+---
+
+## 🐳 Docker Deployment
+
+### Architecture
+
+Vocalyst uses a multi-container Docker setup:
+- **Frontend Container**: Next.js production build (Port 3000)
+- **Backend Container**: Flask API with ML models (Port 5328)
+- **Shared Network**: Bridge network for inter-container communication
+- **Persistent Volumes**: Session data and uploads
+
+### Configuration
+
+### Docker Commands
+
 ```bash
-git clone https://github.com/YourUsername/Vocalyst-Working-Tree.git
-cd Vocalyst-Working-Tree
+# Build containers
+docker-compose build
+
+# Start services
+docker-compose up
+
+# Start in detached mode
+docker-compose up -d
+
+# Stop services
+docker-compose down
+
+# View logs
+docker-compose logs -f
+
+# Rebuild and restart
+docker-compose down && docker-compose build && docker-compose up
 ```
 
-### 2. Setup the Backend (Python)
-```bash
-# Create a virtual environment
-python -m venv venv311
+### Data Persistence
 
-# Activate it (Windows)
-.\venv311\Scripts\activate
-# Activate it (Mac/Linux)
-source venv311/bin/activate
+- **Session Data**: `./api/data` - Stores practice session analytics
+- **Uploads**: `./api/uploads` - Stores recordings and emotion data
+- **Archives**: `./api/data/archive` - Archived session data after reset
 
-# Install heavy ML requirements
-pip install -r api/requirements.txt
-```
+---
 
-### 3. Setup the Frontend (Next.js)
-```bash
-# Open a new terminal tab
-npm install
-```
+## 💻 Usage
 
-### 4. Environment Variables
-Create a `.env` file in the root directory based on `.env.example`:
-```env
-# AI Keys
-GEMINI_API_KEY=your_gemini_key
-NEUPHONIC_API_KEY=your_neuphonic_key
-ELEVENLABS_API_KEY=your_elevenlabs_key
+### Starting a Practice Session
 
-# Routing (Leave as localhost for local development)
-NEXT_PUBLIC_API_URL=http://localhost:5328
-```
+1. **Navigate to Practice**
+   - Click "Practice" in the navigation menu
+   - Select a practice mode (General, Persuasive, Emotive, etc.)
 
-### 5. Run the Application
-```bash
-# This script concurrently starts both Next.js and Flask
-npm run dev
+2. **Record Your Presentation**
+   - Allow camera and microphone permissions
+   - Click "Start Recording"
+   - Speak naturally while the system analyzes
+
+3. **Receive Real-time Feedback**
+   - Monitor live WPM, clarity, and filler word metrics
+   - View eye contact and emotion tracking
+   - Get instant visual feedback
+
+4. **Review Detailed Analysis**
+   - View comprehensive post-session breakdown
+   - Get AI-generated personalized insights
+   - See scores for fluency, coherence, and engagement
+   - Receive actionable recommendations
+
+### Analytics & Insights
+
+**Analytics Dashboard** (`/analytics`):
+- View aggregated performance metrics
+- Track practice mode distribution
+- Monitor emotional expression patterns
+- Review recent session history
+- Reset analytics with data archiving
+
+**AI-Powered Insights** (`/get-insights`):
+- Gamified progress tracking (Level/XP system)
+- Skill breakdown radar chart
+- Dynamic strengths and weaknesses
+- Performance trends (improving/declining/stable)
+- Personalized recommendations
+- Reset progress functionality
+
+---
+
+## 🛠️ Technologies Used
+
+### Frontend Stack
+
+| Technology | Purpose |
+|------------|---------|
+| **Next.js 14** | React framework with SSR and production optimization |
+| **React 18** | UI component library with hooks |
+| **TypeScript** | Type-safe JavaScript development |
+| **Tailwind CSS** | Utility-first styling framework |
+| **Framer Motion** | Smooth animations and transitions |
+| **Recharts** | Data visualization and charts |
+| **Lucide React** | Modern icon library |
+
+### Backend Stack
+
+| Technology | Purpose |
+|------------|---------|
+| **Flask** | Python web framework for API |
+| **Flask-CORS** | Cross-origin resource sharing |
+| **Google Gemini AI** | Dynamic insights generation |
+| **Neuphonic** | Enhanced TTS and speech processing |
+| **ElevenLabs** | High-quality text-to-speech |
+
+### AI/ML Models
+
+| Model | Purpose | Performance |
+|-------|---------|-------------|
+| **OpenAI Whisper** | Speech-to-text transcription | State-of-the-art accuracy |
+| **RoBERTa (large)** | Logical coherence detection | High performance |
+| **XGBoost** | Speech fluency classification | 93% F1 Score |
+| **Google Gemini Pro** | AI insights generation | Real-time analysis |
+
+### Audio Processing
+
+- **Librosa** - Audio feature extraction (MFCC, ZCR, energy)
+- **Neuphonic** - Enhanced speech signal processing
+- **OpenAI Whisper** - Accurate speech transcription
+- **SoundDevice** - Real-time audio capture
+
+### Computer Vision
+
+- **MediaPipe** - Face landmark detection (68 points)
+- **OpenCV** - Video processing and frame analysis
+- **DeepFace** - Facial expression and emotion recognition
+- **GazeTracking** - Eye contact estimation
+
+### Deployment
+
+- **Docker** - Containerization platform
+- **Docker Compose** - Multi-container orchestration
+- **Gunicorn** - Production WSGI server
+- **Next.js Production Build** - Optimized frontend
+
+---
+
+## 🏗️ System Architecture
+
+```mermaid
+graph TD
+    %% Main Application Layer
+    User[User / Client] -->|HTTP / WebRTC| VercelFrontend
+    
+    subgraph "Vercel Cloud (Frontend)"
+        VercelFrontend[Next.js App]
+        UI[Dashboard & UI]
+        Cam[Camera & Mic Capture]
+        VercelFrontend --- UI
+        VercelFrontend --- Cam
+    end
+    
+    %% Communication
+    VercelFrontend <-->|REST API / JSON| HFBackend
+    
+    subgraph "Hugging Face Spaces (Backend Docker)"
+        HFBackend[Flask API Server]
+        
+        %% Sub-Modules
+        subgraph "AI & ML Processing"
+            Whisper[OpenAI Whisper]
+            MediaPipe[MediaPipe Face Mesh]
+            DeepFace[DeepFace Emotion AI]
+            Gemini[Google Gemini API]
+            Neuphonic[Neuphonic TTS]
+        end
+        
+        %% Connections
+        HFBackend -->|Audio Data| Whisper
+        HFBackend -->|Video Frames| MediaPipe
+        HFBackend -->|Video Frames| DeepFace
+        HFBackend -->|Analytics Data| Gemini
+        HFBackend -->|Text| Neuphonic
+        
+        %% Output flow
+        Whisper -->|Transcripts & WPM| HFBackend
+        MediaPipe -->|Eye Tracking| HFBackend
+        DeepFace -->|Emotions & Engagement| HFBackend
+        Gemini -->|Dynamic Insights| HFBackend
+        Neuphonic -->|Audio Feedback| HFBackend
+        
+        %% Storage
+        LocalStorage[(Local JSON Storage)]
+        HFBackend <--> LocalStorage
+    end
+
+    classDef frontend fill:#000,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef backend fill:#ffd21e,stroke:#333,stroke-width:2px,color:#000;
+    classDef ml fill:#e0f7fa,stroke:#006064,stroke-width:1px,color:#000;
+    classDef storage fill:#fff3e0,stroke:#e65100,stroke-width:1px,color:#000;
+
+    class VercelFrontend frontend;
+    class HFBackend backend;
+    class Whisper,MediaPipe,DeepFace,Gemini,Neuphonic ml;
+    class LocalStorage storage;
 ```
 
 ---
 
-## 👨‍💻 Developer
+## 📁 Project Structure
 
-Built by **[Your Name]** 
-* 🔗 [LinkedIn](#)
-* 🌐 [Portfolio](#)
-* ✉️ [Email](mailto:you@example.com)
+```
+Vocalyst-Main/
+├── api/                          # Backend Flask API
+│   ├── index.py                  # Main API endpoints
+│   ├── simple_tts.py            # TTS subprocess handler
+│   ├── tonality.py              # Tonality analysis
+│   ├── data/                    # Session data storage
+│   │   ├── sessions.json        # Practice sessions
+│   │   └── archive/             # Archived data
+│   ├── uploads/                 # User recordings
+│   ├── Dockerfile               # Backend container config
+│   └── requirements.txt         # Python dependencies
+│
+├── app/                         # Next.js frontend
+│   ├── analytics/               # Analytics dashboard
+│   ├── get-insights/           # AI insights page
+│   ├── practice/               # Practice session interface
+│   ├── camera/                 # Camera capture
+│   ├── tts/                    # Text-to-speech lab
+│   ├── Dockerfile              # Frontend container config
+│   └── page.tsx                # Landing page
+│
+├── components/                  # Reusable React components
+│   └── ui/                     # UI component library
+│
+├── docker-compose.yml          # Multi-container orchestration
+├── .env.example               # Environment variables template
+├── .dockerignore              # Docker ignore rules
+├── .gitignore                 # Git ignore rules
+├── package.json              # Node.js dependencies
+├── requirements.txt          # Python dependencies
+└── README.md                # This file
+```
+
+---
+
+## 🎯 Key Features Breakdown
+
+### Session Analysis
+- **Real-time Metrics**: Live WPM, clarity, filler word tracking
+- **Post-Session Breakdown**: Comprehensive analysis with scores
+- **AI Insights**: Unique, personalized feedback per session
+- **Historical Tracking**: Progress monitoring over time
+
+### Analytics Dashboard
+- **Aggregated Metrics**: Average WPM, filler %, clarity, duration
+- **Practice Mode Distribution**: Visual breakdown by category
+- **Emotional Patterns**: Emotion distribution across sessions
+- **Recent Sessions**: Quick access to session history
+- **Reset Functionality**: Archive and clear data
+
+### AI-Powered Insights
+- **Dynamic Analysis**: Real-time strengths/weaknesses calculation
+- **Trend Detection**: Improving/declining/stable metrics
+- **Personalized Recommendations**: Actionable improvement tips
+- **Gamification**: Level/XP system for motivation
+- **Skill Visualization**: Radar chart for skill breakdown
+
+---
+
+## 🗺️ Roadmap
+
+### ✅ Completed Features
+- [x] Docker containerization and deployment
+- [x] Dynamic AI insights with Gemini API
+- [x] Analytics reset with data archiving
+- [x] Enhanced insights page with gamification
+- [x] Skill breakdown radar chart
+- [x] Performance trend analysis
+- [x] Multi-voice TTS integration
+
+### 🚀 Upcoming Features
+- [ ] **Multilingual Support** - 20+ languages for global accessibility
+- [ ] **Mobile Application** - iOS and Android native apps
+- [ ] **Real-Time Coaching** - Live suggestions during presentations
+- [ ] **Team Collaboration** - Multi-user sessions and peer feedback
+- [ ] **Custom Training Modules** - Industry-specific templates
+- [ ] **Integration APIs** - Zoom, Teams, Meet connectivity
+- [ ] **Advanced Emotion AI** - Context-aware sentiment analysis
+- [ ] **Voice Cloning** - Personalized TTS with user's voice
+- [ ] **Presentation Templates** - Pre-built scenarios and scripts
+- [ ] **Export Reports** - PDF/PowerPoint presentation reports
+
+---
+
+## 🔐 Security & Privacy
+
+- **Local Processing**: All ML models run locally in Docker containers
+- **No Data Sharing**: Session data stays on your machine
+- **Environment Variables**: Secure API key management
+- **Data Archiving**: Safe reset with backup functionality
+- **CORS Protection**: Configured cross-origin policies
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions! Here's how:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Development Guidelines
+- Follow PEP 8 for Python, ESLint for TypeScript
+- Write meaningful commit messages
+- Add comments for complex logic
+- Update documentation as needed
+
+---
+
+## 📄 License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 👥 Author
+
+- **Shreyyy07** - [GitHub Profile](https://github.com/Shreyyy07)
+
+---
 
 <div align="center">
-  <sub>Built with ❤️ and Artificial Intelligence.</sub>
+
+**⭐ Star this repository if you find it helpful!**
+
+**🐛 Found a bug?** [Open an issue](https://github.com/Shreyyy07/Vocalyst-Main/issues)
+
+**💡 Have a feature idea?** [Start a discussion](https://github.com/Shreyyy07/Vocalyst-Main/discussions)
+
+Made with ❤️ by Shreyyy07
+
 </div>
