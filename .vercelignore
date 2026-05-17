@@ -1,0 +1,7 @@
+# Ignore the Flask backend directory on Vercel
+# We deploy this folder to Hugging Face instead.
+# If Vercel sees this folder, it mistakenly tries to build the heavy 7GB ML Python environment.
+api/
+requirements.txt
+venv311/
+.venv/
