@@ -34,6 +34,67 @@ Communication is more than just words—it's about how you sound, how you look, 
 
 ---
 
+## 🏗️ System Architecture
+
+```mermaid
+graph TD
+    %% Main Application Layer
+    User[User / Client] -->|HTTP / WebRTC| VercelFrontend
+    
+    subgraph "Vercel Cloud (Frontend)"
+        VercelFrontend[Next.js App]
+        UI[Dashboard & UI]
+        Cam[Camera & Mic Capture]
+        VercelFrontend --- UI
+        VercelFrontend --- Cam
+    end
+    
+    %% Communication
+    VercelFrontend <-->|REST API / JSON| HFBackend
+    
+    subgraph "Hugging Face Spaces (Backend Docker)"
+        HFBackend[Flask API Server]
+        
+        %% Sub-Modules
+        subgraph "AI & ML Processing"
+            Whisper[OpenAI Whisper]
+            MediaPipe[MediaPipe Face Mesh]
+            DeepFace[DeepFace Emotion AI]
+            Gemini[Google Gemini API]
+            Neuphonic[Neuphonic TTS]
+        end
+        
+        %% Connections
+        HFBackend -->|Audio Data| Whisper
+        HFBackend -->|Video Frames| MediaPipe
+        HFBackend -->|Video Frames| DeepFace
+        HFBackend -->|Analytics Data| Gemini
+        HFBackend -->|Text| Neuphonic
+        
+        %% Output flow
+        Whisper -->|Transcripts & WPM| HFBackend
+        MediaPipe -->|Eye Tracking| HFBackend
+        DeepFace -->|Emotions & Engagement| HFBackend
+        Gemini -->|Dynamic Insights| HFBackend
+        Neuphonic -->|Audio Feedback| HFBackend
+        
+        %% Storage
+        LocalStorage[(Local JSON Storage)]
+        HFBackend <--> LocalStorage
+    end
+
+    classDef frontend fill:#000,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef backend fill:#ffd21e,stroke:#333,stroke-width:2px,color:#000;
+    classDef ml fill:#e0f7fa,stroke:#006064,stroke-width:1px,color:#000;
+    classDef storage fill:#fff3e0,stroke:#e65100,stroke-width:1px,color:#000;
+
+    class VercelFrontend frontend;
+    class HFBackend backend;
+    class Whisper,MediaPipe,DeepFace,Gemini,Neuphonic ml;
+    class LocalStorage storage;
+```
+
+
 ## ✨ Features
 
 ### 🎯 Core Capabilities
@@ -90,114 +151,6 @@ Communication is more than just words—it's about how you sound, how you look, 
 - **Speed Control** for customized playback
 - **ElevenLabs & Neuphonic** integration
 - **Practice Prompts** generation
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- **Docker & Docker Compose** (recommended) OR
-- **Node.js** (v18+) and **Python** (v3.11+)
-
-### Option 1: Docker Deployment (Recommended)
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Shreyyy07/Vocalyst-Main.git
-   cd Vocalyst-Main
-   ```
-
-2. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API keys
-   ```
-
-3. **Start with Docker Compose**
-   ```bash
-   docker-compose up
-   ```
-
-4. **Access the application**
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:5328
-
-### Option 2: Local Development
-
-1. **Clone and install dependencies**
-   ```bash
-   git clone https://github.com/Shreyyy07/Vocalyst-Main.git
-   cd Vocalyst-Main
-   
-   # Install Python dependencies
-   pip install -r requirements.txt
-   
-   # Install Node.js dependencies
-   npm install
-   ```
-
-2. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Add your API keys to .env
-   ```
-
-3. **Run both servers**
-   ```bash
-   npm run dev
-   ```
-
-   Or run separately:
-   ```bash
-   # Terminal 1 - Frontend
-   npm run next-dev
-   
-   # Terminal 2 - Backend
-   npm run flask-dev
-   ```
-
----
-
-## 🐳 Docker Deployment
-
-### Architecture
-
-Vocalyst uses a multi-container Docker setup:
-- **Frontend Container**: Next.js production build (Port 3000)
-- **Backend Container**: Flask API with ML models (Port 5328)
-- **Shared Network**: Bridge network for inter-container communication
-- **Persistent Volumes**: Session data and uploads
-
-### Configuration
-
-### Docker Commands
-
-```bash
-# Build containers
-docker-compose build
-
-# Start services
-docker-compose up
-
-# Start in detached mode
-docker-compose up -d
-
-# Stop services
-docker-compose down
-
-# View logs
-docker-compose logs -f
-
-# Rebuild and restart
-docker-compose down && docker-compose build && docker-compose up
-```
-
-### Data Persistence
-
-- **Session Data**: `./api/data` - Stores practice session analytics
-- **Uploads**: `./api/uploads` - Stores recordings and emotion data
-- **Archives**: `./api/data/archive` - Archived session data after reset
 
 ---
 
@@ -297,106 +250,6 @@ docker-compose down && docker-compose build && docker-compose up
 - **Docker Compose** - Multi-container orchestration
 - **Gunicorn** - Production WSGI server
 - **Next.js Production Build** - Optimized frontend
-
----
-
-## 🏗️ System Architecture
-
-```mermaid
-graph TD
-    %% Main Application Layer
-    User[User / Client] -->|HTTP / WebRTC| VercelFrontend
-    
-    subgraph "Vercel Cloud (Frontend)"
-        VercelFrontend[Next.js App]
-        UI[Dashboard & UI]
-        Cam[Camera & Mic Capture]
-        VercelFrontend --- UI
-        VercelFrontend --- Cam
-    end
-    
-    %% Communication
-    VercelFrontend <-->|REST API / JSON| HFBackend
-    
-    subgraph "Hugging Face Spaces (Backend Docker)"
-        HFBackend[Flask API Server]
-        
-        %% Sub-Modules
-        subgraph "AI & ML Processing"
-            Whisper[OpenAI Whisper]
-            MediaPipe[MediaPipe Face Mesh]
-            DeepFace[DeepFace Emotion AI]
-            Gemini[Google Gemini API]
-            Neuphonic[Neuphonic TTS]
-        end
-        
-        %% Connections
-        HFBackend -->|Audio Data| Whisper
-        HFBackend -->|Video Frames| MediaPipe
-        HFBackend -->|Video Frames| DeepFace
-        HFBackend -->|Analytics Data| Gemini
-        HFBackend -->|Text| Neuphonic
-        
-        %% Output flow
-        Whisper -->|Transcripts & WPM| HFBackend
-        MediaPipe -->|Eye Tracking| HFBackend
-        DeepFace -->|Emotions & Engagement| HFBackend
-        Gemini -->|Dynamic Insights| HFBackend
-        Neuphonic -->|Audio Feedback| HFBackend
-        
-        %% Storage
-        LocalStorage[(Local JSON Storage)]
-        HFBackend <--> LocalStorage
-    end
-
-    classDef frontend fill:#000,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef backend fill:#ffd21e,stroke:#333,stroke-width:2px,color:#000;
-    classDef ml fill:#e0f7fa,stroke:#006064,stroke-width:1px,color:#000;
-    classDef storage fill:#fff3e0,stroke:#e65100,stroke-width:1px,color:#000;
-
-    class VercelFrontend frontend;
-    class HFBackend backend;
-    class Whisper,MediaPipe,DeepFace,Gemini,Neuphonic ml;
-    class LocalStorage storage;
-```
-
----
-
-## 📁 Project Structure
-
-```
-Vocalyst-Main/
-├── api/                          # Backend Flask API
-│   ├── index.py                  # Main API endpoints
-│   ├── simple_tts.py            # TTS subprocess handler
-│   ├── tonality.py              # Tonality analysis
-│   ├── data/                    # Session data storage
-│   │   ├── sessions.json        # Practice sessions
-│   │   └── archive/             # Archived data
-│   ├── uploads/                 # User recordings
-│   ├── Dockerfile               # Backend container config
-│   └── requirements.txt         # Python dependencies
-│
-├── app/                         # Next.js frontend
-│   ├── analytics/               # Analytics dashboard
-│   ├── get-insights/           # AI insights page
-│   ├── practice/               # Practice session interface
-│   ├── camera/                 # Camera capture
-│   ├── tts/                    # Text-to-speech lab
-│   ├── Dockerfile              # Frontend container config
-│   └── page.tsx                # Landing page
-│
-├── components/                  # Reusable React components
-│   └── ui/                     # UI component library
-│
-├── docker-compose.yml          # Multi-container orchestration
-├── .env.example               # Environment variables template
-├── .dockerignore              # Docker ignore rules
-├── .gitignore                 # Git ignore rules
-├── package.json              # Node.js dependencies
-├── requirements.txt          # Python dependencies
-└── README.md                # This file
-```
 
 ---
 
