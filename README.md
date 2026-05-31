@@ -303,61 +303,59 @@ docker-compose down && docker-compose build && docker-compose up
 ## 🏗️ System Architecture
 
 ```mermaid
-graph TD
-    %% Main Application Layer
-    User[User / Client] -->|HTTP / WebRTC| VercelFrontend
-    
-    subgraph "Vercel Cloud (Frontend)"
-        VercelFrontend[Next.js App]
-        UI[Dashboard & UI]
-        Cam[Camera & Mic Capture]
-        VercelFrontend --- UI
-        VercelFrontend --- Cam
-    end
-    
-    %% Communication
-    VercelFrontend <-->|REST API / JSON| HFBackend
-    
-    subgraph "Hugging Face Spaces (Backend Docker)"
-        HFBackend[Flask API Server]
-        
-        %% Sub-Modules
-        subgraph "AI & ML Processing"
-            Whisper[OpenAI Whisper]
-            MediaPipe[MediaPipe Face Mesh]
-            DeepFace[DeepFace Emotion AI]
-            Gemini[Google Gemini API]
-            Neuphonic[Neuphonic TTS]
-        end
-        
-        %% Connections
-        HFBackend -->|Audio Data| Whisper
-        HFBackend -->|Video Frames| MediaPipe
-        HFBackend -->|Video Frames| DeepFace
-        HFBackend -->|Analytics Data| Gemini
-        HFBackend -->|Text| Neuphonic
-        
-        %% Output flow
-        Whisper -->|Transcripts & WPM| HFBackend
-        MediaPipe -->|Eye Tracking| HFBackend
-        DeepFace -->|Emotions & Engagement| HFBackend
-        Gemini -->|Dynamic Insights| HFBackend
-        Neuphonic -->|Audio Feedback| HFBackend
-        
-        %% Storage
-        LocalStorage[(Local JSON Storage)]
-        HFBackend <--> LocalStorage
-    end
+flowchart LR
+    %% Colorful Theme Definitions matching the screenshot
+    classDef purple fill:#6b21a8,stroke:#d8b4fe,stroke-width:2px,color:#fff
+    classDef blue fill:#1d4ed8,stroke:#93c5fd,stroke-width:2px,color:#fff
+    classDef orange fill:#ea580c,stroke:#fdba74,stroke-width:2px,color:#fff
+    classDef green fill:#15803d,stroke:#bbf7d0,stroke-width:2px,color:#fff
+    classDef red fill:#b91c1c,stroke:#fca5a5,stroke-width:2px,color:#fff
 
-    classDef frontend fill:#000,stroke:#fff,stroke-width:2px,color:#fff;
-    classDef backend fill:#ffd21e,stroke:#333,stroke-width:2px,color:#000;
-    classDef ml fill:#e0f7fa,stroke:#006064,stroke-width:1px,color:#000;
-    classDef storage fill:#fff3e0,stroke:#e65100,stroke-width:1px,color:#000;
+    %% Nodes
+    User["User / Client"]:::purple
+    
+    %% Frontend
+    VercelFrontend["Next.js App<br/>(Vercel Cloud)"]:::blue
+    UI["Dashboard & UI"]:::blue
+    Cam["Camera & Mic Capture"]:::blue
 
-    class VercelFrontend frontend;
-    class HFBackend backend;
-    class Whisper,MediaPipe,DeepFace,Gemini,Neuphonic ml;
-    class LocalStorage storage;
+    %% Backend
+    HFBackend["Flask API Server<br/>(Backend Docker)"]:::orange
+
+    %% AI & ML Services
+    Whisper["OpenAI Whisper<br/>(Speech-to-Text)"]:::green
+    MediaPipe["MediaPipe<br/>(Face Mesh)"]:::green
+    DeepFace["DeepFace<br/>(Emotion AI)"]:::red
+    Gemini["Google Gemini API<br/>(Insights)"]:::purple
+    Neuphonic["Neuphonic TTS<br/>(Audio Feedback)"]:::blue
+
+    %% Storage
+    LocalStorage[("Local JSON Storage")]:::orange
+
+    %% User & Frontend Connections
+    User <==>|"HTTP / WebRTC"| VercelFrontend
+    VercelFrontend --- UI
+    VercelFrontend --- Cam
+    
+    %% Frontend to Backend
+    VercelFrontend <==>|"REST API / JSON"| HFBackend
+    
+    %% Backend to AI Models (Inputs)
+    HFBackend ==>|"Audio Data"| Whisper
+    HFBackend ==>|"Video Frames"| MediaPipe
+    HFBackend ==>|"Video Frames"| DeepFace
+    HFBackend ==>|"Analytics Data"| Gemini
+    HFBackend ==>|"Text Payload"| Neuphonic
+    
+    %% AI Models to Backend (Outputs)
+    Whisper -.->|"Transcripts & WPM"| HFBackend
+    MediaPipe -.->|"Eye Tracking"| HFBackend
+    DeepFace -.->|"Emotions & Engagement"| HFBackend
+    Gemini -.->|"Dynamic Insights"| HFBackend
+    Neuphonic -.->|"Audio Streams"| HFBackend
+    
+    %% Storage Flow
+    HFBackend <==>|"Read/Write"| LocalStorage
 ```
 
 ---
