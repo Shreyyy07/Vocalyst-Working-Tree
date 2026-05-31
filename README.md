@@ -34,6 +34,67 @@ Communication is more than just words—it's about how you sound, how you look, 
 
 ---
 
+## 🏗️ System Architecture
+
+```mermaid
+graph TD
+    %% Main Application Layer
+    User[User / Client] -->|HTTP / WebRTC| VercelFrontend
+    
+    subgraph "Vercel Cloud (Frontend)"
+        VercelFrontend[Next.js App]
+        UI[Dashboard & UI]
+        Cam[Camera & Mic Capture]
+        VercelFrontend --- UI
+        VercelFrontend --- Cam
+    end
+    
+    %% Communication
+    VercelFrontend <-->|REST API / JSON| HFBackend
+    
+    subgraph "Hugging Face Spaces (Backend Docker)"
+        HFBackend[Flask API Server]
+        
+        %% Sub-Modules
+        subgraph "AI & ML Processing"
+            Whisper[OpenAI Whisper]
+            MediaPipe[MediaPipe Face Mesh]
+            DeepFace[DeepFace Emotion AI]
+            Gemini[Google Gemini API]
+            Neuphonic[Neuphonic TTS]
+        end
+        
+        %% Connections
+        HFBackend -->|Audio Data| Whisper
+        HFBackend -->|Video Frames| MediaPipe
+        HFBackend -->|Video Frames| DeepFace
+        HFBackend -->|Analytics Data| Gemini
+        HFBackend -->|Text| Neuphonic
+        
+        %% Output flow
+        Whisper -->|Transcripts & WPM| HFBackend
+        MediaPipe -->|Eye Tracking| HFBackend
+        DeepFace -->|Emotions & Engagement| HFBackend
+        Gemini -->|Dynamic Insights| HFBackend
+        Neuphonic -->|Audio Feedback| HFBackend
+        
+        %% Storage
+        LocalStorage[(Local JSON Storage)]
+        HFBackend <--> LocalStorage
+    end
+
+    classDef frontend fill:#000,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef backend fill:#ffd21e,stroke:#333,stroke-width:2px,color:#000;
+    classDef ml fill:#e0f7fa,stroke:#006064,stroke-width:1px,color:#000;
+    classDef storage fill:#fff3e0,stroke:#e65100,stroke-width:1px,color:#000;
+
+    class VercelFrontend frontend;
+    class HFBackend backend;
+    class Whisper,MediaPipe,DeepFace,Gemini,Neuphonic ml;
+    class LocalStorage storage;
+```
+
+
 ## ✨ Features
 
 ### 🎯 Core Capabilities
@@ -90,114 +151,6 @@ Communication is more than just words—it's about how you sound, how you look, 
 - **Speed Control** for customized playback
 - **ElevenLabs & Neuphonic** integration
 - **Practice Prompts** generation
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- **Docker & Docker Compose** (recommended) OR
-- **Node.js** (v18+) and **Python** (v3.11+)
-
-### Option 1: Docker Deployment (Recommended)
-
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Shreyyy07/Vocalyst-Main.git
-   cd Vocalyst-Main
-   ```
-
-2. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Edit .env with your API keys
-   ```
-
-3. **Start with Docker Compose**
-   ```bash
-   docker-compose up
-   ```
-
-4. **Access the application**
-   - Frontend: http://localhost:3000
-   - Backend API: http://localhost:5328
-
-### Option 2: Local Development
-
-1. **Clone and install dependencies**
-   ```bash
-   git clone https://github.com/Shreyyy07/Vocalyst-Main.git
-   cd Vocalyst-Main
-   
-   # Install Python dependencies
-   pip install -r requirements.txt
-   
-   # Install Node.js dependencies
-   npm install
-   ```
-
-2. **Set up environment variables**
-   ```bash
-   cp .env.example .env
-   # Add your API keys to .env
-   ```
-
-3. **Run both servers**
-   ```bash
-   npm run dev
-   ```
-
-   Or run separately:
-   ```bash
-   # Terminal 1 - Frontend
-   npm run next-dev
-   
-   # Terminal 2 - Backend
-   npm run flask-dev
-   ```
-
----
-
-## 🐳 Docker Deployment
-
-### Architecture
-
-Vocalyst uses a multi-container Docker setup:
-- **Frontend Container**: Next.js production build (Port 3000)
-- **Backend Container**: Flask API with ML models (Port 5328)
-- **Shared Network**: Bridge network for inter-container communication
-- **Persistent Volumes**: Session data and uploads
-
-### Configuration
-
-### Docker Commands
-
-```bash
-# Build containers
-docker-compose build
-
-# Start services
-docker-compose up
-
-# Start in detached mode
-docker-compose up -d
-
-# Stop services
-docker-compose down
-
-# View logs
-docker-compose logs -f
-
-# Rebuild and restart
-docker-compose down && docker-compose build && docker-compose up
-```
-
-### Data Persistence
-
-- **Session Data**: `./api/data` - Stores practice session analytics
-- **Uploads**: `./api/uploads` - Stores recordings and emotion data
-- **Archives**: `./api/data/archive` - Archived session data after reset
 
 ---
 
@@ -303,59 +256,61 @@ docker-compose down && docker-compose build && docker-compose up
 ## 🏗️ System Architecture
 
 ```mermaid
-flowchart LR
-    %% Colorful Theme Definitions matching the screenshot
-    classDef purple fill:#6b21a8,stroke:#d8b4fe,stroke-width:2px,color:#fff
-    classDef blue fill:#1d4ed8,stroke:#93c5fd,stroke-width:2px,color:#fff
-    classDef orange fill:#ea580c,stroke:#fdba74,stroke-width:2px,color:#fff
-    classDef green fill:#15803d,stroke:#bbf7d0,stroke-width:2px,color:#fff
-    classDef red fill:#b91c1c,stroke:#fca5a5,stroke-width:2px,color:#fff
-
-    %% Nodes
-    User["User / Client"]:::purple
+graph TD
+    %% Main Application Layer
+    User[User / Client] -->|HTTP / WebRTC| VercelFrontend
     
-    %% Frontend
-    VercelFrontend["Next.js App<br/>(Vercel Cloud)"]:::blue
-    UI["Dashboard & UI"]:::blue
-    Cam["Camera & Mic Capture"]:::blue
-
-    %% Backend
-    HFBackend["Flask API Server<br/>(Backend Docker)"]:::orange
-
-    %% AI & ML Services
-    Whisper["OpenAI Whisper<br/>(Speech-to-Text)"]:::green
-    MediaPipe["MediaPipe<br/>(Face Mesh)"]:::green
-    DeepFace["DeepFace<br/>(Emotion AI)"]:::red
-    Gemini["Google Gemini API<br/>(Insights)"]:::purple
-    Neuphonic["Neuphonic TTS<br/>(Audio Feedback)"]:::blue
-
-    %% Storage
-    LocalStorage[("Local JSON Storage")]:::orange
-
-    %% User & Frontend Connections
-    User <==>|"HTTP / WebRTC"| VercelFrontend
-    VercelFrontend --- UI
-    VercelFrontend --- Cam
+    subgraph "Vercel Cloud (Frontend)"
+        VercelFrontend[Next.js App]
+        UI[Dashboard & UI]
+        Cam[Camera & Mic Capture]
+        VercelFrontend --- UI
+        VercelFrontend --- Cam
+    end
     
-    %% Frontend to Backend
-    VercelFrontend <==>|"REST API / JSON"| HFBackend
+    %% Communication
+    VercelFrontend <-->|REST API / JSON| HFBackend
     
-    %% Backend to AI Models (Inputs)
-    HFBackend ==>|"Audio Data"| Whisper
-    HFBackend ==>|"Video Frames"| MediaPipe
-    HFBackend ==>|"Video Frames"| DeepFace
-    HFBackend ==>|"Analytics Data"| Gemini
-    HFBackend ==>|"Text Payload"| Neuphonic
-    
-    %% AI Models to Backend (Outputs)
-    Whisper -.->|"Transcripts & WPM"| HFBackend
-    MediaPipe -.->|"Eye Tracking"| HFBackend
-    DeepFace -.->|"Emotions & Engagement"| HFBackend
-    Gemini -.->|"Dynamic Insights"| HFBackend
-    Neuphonic -.->|"Audio Streams"| HFBackend
-    
-    %% Storage Flow
-    HFBackend <==>|"Read/Write"| LocalStorage
+    subgraph "Hugging Face Spaces (Backend Docker)"
+        HFBackend[Flask API Server]
+        
+        %% Sub-Modules
+        subgraph "AI & ML Processing"
+            Whisper[OpenAI Whisper]
+            MediaPipe[MediaPipe Face Mesh]
+            DeepFace[DeepFace Emotion AI]
+            Gemini[Google Gemini API]
+            Neuphonic[Neuphonic TTS]
+        end
+        
+        %% Connections
+        HFBackend -->|Audio Data| Whisper
+        HFBackend -->|Video Frames| MediaPipe
+        HFBackend -->|Video Frames| DeepFace
+        HFBackend -->|Analytics Data| Gemini
+        HFBackend -->|Text| Neuphonic
+        
+        %% Output flow
+        Whisper -->|Transcripts & WPM| HFBackend
+        MediaPipe -->|Eye Tracking| HFBackend
+        DeepFace -->|Emotions & Engagement| HFBackend
+        Gemini -->|Dynamic Insights| HFBackend
+        Neuphonic -->|Audio Feedback| HFBackend
+        
+        %% Storage
+        LocalStorage[(Local JSON Storage)]
+        HFBackend <--> LocalStorage
+    end
+
+    classDef frontend fill:#000,stroke:#fff,stroke-width:2px,color:#fff;
+    classDef backend fill:#ffd21e,stroke:#333,stroke-width:2px,color:#000;
+    classDef ml fill:#e0f7fa,stroke:#006064,stroke-width:1px,color:#000;
+    classDef storage fill:#fff3e0,stroke:#e65100,stroke-width:1px,color:#000;
+
+    class VercelFrontend frontend;
+    class HFBackend backend;
+    class Whisper,MediaPipe,DeepFace,Gemini,Neuphonic ml;
+    class LocalStorage storage;
 ```
 
 ---
